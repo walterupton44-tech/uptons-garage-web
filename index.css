@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/* 🔹 Panel translúcido estilo vidrio */
+.glass-panel {
+  background-color: rgba(15, 23, 42, 0.7); /* slate-950 con opacidad */
+  backdrop-filter: blur(12px);
+  border-radius: 2rem;
+  border: 1px solid rgba(51, 65, 85, 0.6); /* borde slate-700 */
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+/* 🔹 Overlay oscuro para fondos con imagen */
+.overlay-dark { 
+  position: absolute; inset: 0; 
+  background: rgba(0,0,0,0.55); 
+  z-index: 5; } 
+  .glass-panel {
+    background: rgba(255,255,255,0.03); 
+    backdrop-filter: blur(8px); 
+    border: 1px solid rgba(255,255,255,0.04); 
+    border-radius: 16px; }
+
+/* 🔹 Botón principal */
+.btn-primary {
+  @apply w-full bg-amber-500 text-slate-950 rounded-2xl px-6 py-4 font-black uppercase italic tracking-widest hover:bg-amber-400 transition-all;
+}
+
+/* 🔹 Botón secundario */
+.btn-secondary {
+  @apply w-full bg-slate-800 text-white rounded-2xl px-6 py-4 font-black uppercase italic tracking-widest hover:bg-slate-700 transition-all;
+}
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.calendar-day {
+  background: #1e293b; /* slate-800 */
+  padding: 10px;
+  border-radius: 8px;
+  color: white;
+}
+/* Colores por defecto (Slate) */
+:root {
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --primary: #f59e0b; /* Ambar */
+}
+
+/* Variante Ocean */
+body.theme-ocean {
+  --bg-main: #082f49;
+  --bg-card: #0c4a6e;
+  --primary: #0ea5e9; /* Azul */
+}
+
+/* Variante Zinc */
+body.theme-zinc {
+  --bg-main: #18181b;
+  --bg-card: #27272a;
+  --primary: #10b981; /* Esmeralda */
+}
+/* Definición de temas */
+:root {
+  --color-bg-main: #0f172a;    /* Slate 900 */
+  --color-bg-card: #1e293b;    /* Slate 800 */
+  --color-primary: #f59e0b;    /* Amber 500 */
+  --color-border: #334155;     /* Slate 700 */
+}
+
+[data-theme='ocean'] {
+  --color-bg-main: #020617;    /* Muy oscuro */
+  --color-bg-card: #0f172a;    /* Azul petróleo */
+  --color-primary: #0ea5e9;    /* Sky 500 */
+  --color-border: #1e293b;
+}
+
+[data-theme='forest'] {
+  --color-bg-main: #052e16;    /* Verde muy oscuro */
+  --color-bg-card: #064e3b;    /* Verde esmeralda */
+  --color-primary: #10b981;    /* Esmeralda 500 */
+  --color-border: #065f46;
+}
+
+[data-theme='dark-red'] {
+  --color-bg-main: #1a0505;
+  --color-bg-card: #2d0a0a;
+  --color-primary: #ef4444;    /* Rojo */
+  --color-border: #451a1a;
+}
+:root {
+  --color-bg-main: #0f172a;
+  --color-bg-card: #1e293b;
+  --color-primary: #f59e0b;
+  --color-border: #334155;
+  --color-text: #ffffff;
+}
+
+[data-theme='ocean'] {
+  --color-bg-main: #020617;
+  --color-bg-card: #0f172a;
+  --color-primary: #0ea5e9;
+  --color-border: #1e293b;
+}
+
+[data-theme='forest'] {
+  --color-bg-main: #052e16;
+  --color-bg-card: #064e3b;
+  --color-primary: #10b981;
+  --color-border: #065f46;
+}
+
+[data-theme='premium'] {
+  --color-bg-main: #18181b;
+  --color-bg-card: #27272a;
+  --color-primary: #a855f7; /* Violeta */
+  --color-border: #3f3f46;
+}

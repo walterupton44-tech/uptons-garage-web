@@ -1,0 +1,31 @@
+﻿@import "tailwindcss";
+
+/* 🔹 Panel translúcido estilo vidrio */
+.glass-panel {
+  background-color: rgba(15, 23, 42, 0.7); /* slate-950 con opacidad */
+  backdrop-filter: blur(12px);
+  border-radius: 2rem;
+  border: 1px solid rgba(51, 65, 85, 0.6); /* borde slate-700 */
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+/* 🔹 Overlay oscuro para fondos con imagen */
+.overlay-dark { 
+  position: absolute; inset: 0; 
+  background: rgba(0,0,0,0.55); 
+  z-index: 5; } 
+  .glass-panel {
+    background: rgba(255,255,255,0.03); 
+    backdrop-filter: blur(8px); 
+    border: 1px solid rgba(255,255,255,0.04); 
+    border-radius: 16px; }
+
+/* 🔹 Botón principal */
+.btn-primary {
+  @apply w-full bg-amber-500 text-slate-950 rounded-2xl px-6 py-4 font-black uppercase italic tracking-widest hover:bg-amber-400 transition-all;
+}
+
+/* 🔹 Botón secundario */
+.btn-secondary {
+  @apply w-full bg-slate-800 text-white rounded-2xl px-6 py-4 font-black uppercase italic tracking-widest hover:bg-slate-700 transition-all;
+}

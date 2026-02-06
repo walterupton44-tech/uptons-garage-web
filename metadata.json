@@ -1,0 +1,8 @@
+
+{
+  "name": "Upton's Garage Manager",
+  "description": "Sistema integral de gestión para Upton's Garage: control de clientes, vehículos, presupuestos, facturación y asistente de diagnóstico por IA.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

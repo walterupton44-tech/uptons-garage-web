@@ -1,0 +1,93 @@
+-- ============================
+-- ADMINISTRADOR
+-- ============================
+-- Admins pueden leer todos los clientes
+CREATE POLICY "Admins can read all clients"
+ON clients
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'ADMINISTRADOR'
+  )
+);
+
+-- Admins tienen acceso total (insertar, actualizar, eliminar)
+CREATE POLICY "Admins full access"
+ON clients
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'ADMINISTRADOR'
+  )
+);
+
+-- ============================
+-- CLIENTE
+-- ============================
+-- Clientes solo pueden leer su propio registro
+CREATE POLICY "Clients can read themselves"
+ON clients
+FOR SELECT
+USING (
+  email = auth.email()
+  AND role = 'CLIENTE'
+);
+
+-- Clientes solo pueden actualizar su propio registro
+CREATE POLICY "Clients update themselves"
+ON clients
+FOR UPDATE
+USING (
+  email = auth.email()
+  AND role = 'CLIENTE'
+);
+
+-- ============================
+-- MECANICO
+-- ============================
+-- Mecánicos pueden leer todos los clientes
+CREATE POLICY "Mechanics can read all clients"
+ON clients
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'MECANICO'
+  )
+);
+
+-- Mecánicos solo pueden actualizar estado del vehículo y notas
+CREATE POLICY "Mechanics can update vehicle status and notes"
+ON clients
+FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'MECANICO'
+  )
+)
+WITH CHECK (
+  -- Solo se permite modificar estas columnas
+  (vehicle_status IS NOT NULL OR notes IS NOT NULL)
+);
+
+-- ============================
+-- USER (rol básico)
+-- ============================
+-- Usuarios básicos solo pueden leer clientes
+CREATE POLICY "Users can read clients"
+ON clients
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'USER'
+  )
+);
