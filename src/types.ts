@@ -21,6 +21,7 @@ export enum UserRole {
 
 // Cliente
 export interface Client {
+  full_name: string;
   id: string;              // puede ser string (UUID) o number
   name: string;
   email: string;
@@ -60,6 +61,8 @@ export interface ServiceItem {
 
 // Orden de servicio
 export interface ServiceOrder {
+  client_id: string;
+  vehicle_id: string;
  
   id: string;
   budgetNumber?: string;
