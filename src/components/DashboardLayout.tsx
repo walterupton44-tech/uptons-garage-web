@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
-import logo from "../assets/logo.png";
+import logo from "../assets/Logo.png";
 import UserAccountModal from "./UserAccountModal";
 
 const lang = "es";
