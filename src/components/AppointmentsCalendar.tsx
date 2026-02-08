@@ -48,47 +48,53 @@ export default function AppointmentsCalendar() {
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
   const isCliente = currentUser?.role?.toLowerCase() === 'cliente' || currentUser?.role === 'CLIENT';
 
-  const fetchAppointments = async () => {
-    setLoading(true);
-    try {
-      // 1. Obtener perfil para asegurar el client_id
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('client_id, role')
-        .eq('id', currentUser?.id)
-        .single();
-
-      let query = supabase
-        .from("appointments")
-        .select(`*, clients ( name, phone ), vehicles ( plate )`);
-
-      // 2. Aplicar filtro de seguridad
-      const userRole = profile?.role?.toLowerCase() || currentUser?.role?.toLowerCase();
-      const isClientRole = userRole === 'cliente' || userRole === 'client';
-
-      if (isClientRole) {
-        const finalClientId = profile?.client_id || currentUser?.client_id;
-        if (finalClientId) {
-          query = query.eq("client_id", finalClientId);
-        } else {
-          setAppointments([]);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // 3. Ejecutar consulta y cerrar la lógica correctamente
-      const { data, error } = await query.order("time", { ascending: true });
+                  
       
-      if (error) throw error;
-      setAppointments(data || []);
-    } catch (err) {
-      console.error("Error fetching appointments:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchAppointments = async () => {
+  setLoading(true);
+  try {
+    // 1. Buscamos el perfil real en la tabla public.profiles usando el ID de Auth
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, client_id')
+      .eq('id', currentUser?.id)
+      .single();
 
+    if (profileError) console.warn("No se encontró perfil para este usuario");
+
+    let query = supabase
+      .from("appointments")
+      .select(`*, clients ( name, phone ), vehicles ( plate )`);
+
+    // 2. Lógica de filtrado estricta
+    // Si el rol es 'cliente' (viene de tu Enum en la DB) o si NO es admin, filtramos.
+    const userRole = profile?.role?.toLowerCase() || currentUser?.role?.toLowerCase();
+    
+    if (userRole === 'cliente' || userRole === 'client') {
+      const cid = profile?.client_id || currentUser?.client_id;
+      
+      if (cid) {
+        query = query.eq("client_id", cid);
+      } else {
+        // SEGURIDAD: Si es cliente pero no tiene client_id vinculado, 
+        // no le mostramos NADA para evitar que vea turnos ajenos.
+        setAppointments([]);
+        setLoading(false);
+        return;
+      }
+    }
+
+    const { data, error } = await query.order("time", { ascending: true });
+    if (error) throw error;
+    setAppointments(data || []);
+  } catch (err) {
+    console.error("Error en fetchAppointments:", err);
+  } finally {
+    setLoading(false);
+  }
+};    
+                    
+                      
   useEffect(() => {
     if (currentUser) fetchAppointments();
   }, [currentUser]);

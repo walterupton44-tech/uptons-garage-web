@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 import { 
-  UserPlus, Search, Pencil, Car, User, 
-  Phone, Mail, MapPin, X, Lock, ShieldCheck, CheckCircle2, Loader2
+  UserPlus, Search, Pencil, User, 
+  Phone, Mail, MapPin, X, Lock, ShieldCheck, CheckCircle2, Loader2, Car
 } from "lucide-react";
 import { UserRole } from "../types";
 import { useNavigate } from "react-router-dom";
@@ -73,7 +73,6 @@ export default function ClientsList({ clients: externalClients, onRefresh }: Cli
   }, [externalClients]);
 
   const saveClient = async () => {
-    // Validaciones iniciales
     if (!formData.name.trim()) return setMessage({ type: "error", text: "El nombre es obligatorio" });
     if (crearAcceso && (!formData.email || password.length < 6)) {
       return setMessage({ type: "error", text: "Email y contraseña (mín. 6 caracteres) son obligatorios para el acceso" });
@@ -86,37 +85,39 @@ export default function ClientsList({ clients: externalClients, onRefresh }: Cli
       let currentUserId = editingClient?.user_id || null;
       let clientId = editingClient?.id || null;
 
-      // --- PASO 1: CREAR USUARIO EN SUPABASE AUTH (Si se marca el acceso) ---
-       
-      // Dentro de saveClient, en el PASO 1:
-if (crearAcceso && !currentUserId) {
-  console.log("Intentando crear usuario en Auth...");
-  
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: formData.email,
-    password: password,
-    options: { 
-      emailRedirectTo: window.location.origin, // Ayuda a estabilizar la petición
-      data: { 
-        full_name: formData.name,
-        role: 'cliente'
-      } 
-    }
-  });
+      // --- PASO 1: MANEJO DE AUTENTICACIÓN (Auth) ---
+      if (crearAcceso && !currentUserId) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: password,
+          options: { 
+            emailRedirectTo: window.location.origin,
+            data: { full_name: formData.name, role: 'cliente' } 
+          }
+        });
 
-  if (authError) {
-    // Si el error es "User already registered", intentamos obtener el ID
-    if (authError.message.includes("already registered")) {
-        // Aquí podrías decidir si lanzar error o intentar buscarlo
-        throw new Error("Este email ya está registrado en el sistema de autenticación.");
-    }
-    throw authError;
-  }
-  
-  currentUserId = authData.user?.id || null;
-  console.log("Usuario de acceso confirmado con ID:", currentUserId);
-}
-                                                
+        if (authError) {
+          // Si el usuario ya existe, intentamos recuperar su ID de profiles
+          if (authError.message.includes("already registered") || authError.status === 422) {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('email', formData.email)
+              .single();
+            
+            if (existingProfile) {
+              currentUserId = existingProfile.id;
+            } else {
+              throw new Error("El email ya existe pero no se pudo recuperar el perfil de acceso.");
+            }
+          } else {
+            throw authError;
+          }
+        } else {
+          currentUserId = authData.user?.id || null;
+        }
+      }
+
       // --- PASO 2: GUARDAR EN TABLA CLIENTS ---
       const clientPayload = { 
         name: formData.name,
@@ -128,33 +129,24 @@ if (crearAcceso && !currentUserId) {
       };
 
       if (editingClient) {
-        console.log("Actualizando cliente existente...");
         const { error: updateError } = await supabase
           .from("clients")
           .update(clientPayload)
           .eq("id", editingClient.id);
-        
         if (updateError) throw updateError;
         clientId = editingClient.id;
       } else {
-        console.log("Insertando nuevo cliente...");
         const { data: newClient, error: insertError } = await supabase
           .from("clients")
           .insert([clientPayload])
           .select()
           .single();
-        
-        if (insertError) {
-          console.error("Error al insertar cliente:", insertError);
-          throw new Error(`Error en base de datos: ${insertError.message}`);
-        }
+        if (insertError) throw insertError;
         clientId = newClient.id;
       }
 
-      // --- PASO 3: CREAR/ACTUALIZAR PERFIL (Profiles) ---
-      // Esto vincula el acceso con el rol y el cliente_id
+      // --- PASO 3: SINCRONIZACIÓN DE PERFIL (Vínculo Crítico) ---
       if (currentUserId && clientId) {
-        console.log("Vinculando perfil de sistema...");
         const { error: profileError } = await supabase
           .from("profiles")
           .upsert({
@@ -162,15 +154,14 @@ if (crearAcceso && !currentUserId) {
             email: formData.email,
             full_name: formData.name,
             role: 'cliente' as any,
-            client_id: clientId
+            client_id: clientId,
+            updated_at: new Date()
           });
         
-        if (profileError) {
-          console.warn("Aviso: El perfil no se pudo crear, pero el cliente sí:", profileError.message);
-        }
+        if (profileError) console.warn("Error vinculando profile:", profileError.message);
       }
 
-      setMessage({ type: "success", text: "Cliente guardado con éxito" });
+      setMessage({ type: "success", text: "Cliente guardado y vinculado con éxito" });
       
       setTimeout(() => {
         setShowModal(false);
@@ -179,7 +170,7 @@ if (crearAcceso && !currentUserId) {
       }, 1500);
 
     } catch (error: any) {
-      console.error("Proceso fallido:", error);
+      console.error("Error en el proceso:", error);
       setMessage({ type: "error", text: error.message || "Ocurrió un error inesperado" });
     } finally {
       setLoading(false);
@@ -212,7 +203,7 @@ if (crearAcceso && !currentUserId) {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3 italic">
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3 italic text-white">
             <User className="text-amber-500" size={32} /> UPTON'S CLIENTES
           </h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Base de datos de Garage</p>
@@ -228,13 +219,13 @@ if (crearAcceso && !currentUserId) {
               onChange={(e) => setFiltro(e.target.value)} 
             />
           </div>
-          <button onClick={() => openModal()} className="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95">
+          <button onClick={() => openModal()} className="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all">
             <UserPlus size={18} /> Nuevo Registro
           </button>
         </div>
       </div>
 
-      {/* TABLA DE CLIENTES */}
+      {/* LISTA / TABLA */}
       <div className="bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -268,8 +259,8 @@ if (crearAcceso && !currentUserId) {
                     )}
                   </td>
                   <td className="p-5 flex justify-center gap-2">
-                    <button onClick={() => navigate(`/vehicles?client_id=${client.id}`)} title="Ver Vehículos" className="p-2.5 bg-slate-900 rounded-xl hover:bg-amber-600 text-white transition-all"><Car size={16} /></button>
-                    <button onClick={() => openModal(client)} title="Editar Perfil" className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-white transition-all"><Pencil size={16} /></button>
+                    <button onClick={() => navigate(`/vehicles?client_id=${client.id}`)} className="p-2.5 bg-slate-900 rounded-xl hover:bg-amber-600 text-white transition-all"><Car size={16} /></button>
+                    <button onClick={() => openModal(client)} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-white transition-all"><Pencil size={16} /></button>
                   </td>
                 </tr>
               ))}
@@ -278,20 +269,20 @@ if (crearAcceso && !currentUserId) {
         </div>
       </div>
 
-      {/* MODAL DE REGISTRO / EDICIÓN */}
+      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+          <div className="bg-slate-900 border border-slate-700 rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden">
+            <div className="p-8 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
                 <UserPlus className="text-amber-500" /> {editingClient ? "Editar Cliente" : "Nuevo Cliente"}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white transition-colors"><X size={24} /></button>
+              <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white"><X size={24} /></button>
             </div>
 
-            <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+            <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto">
               {message && (
-                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-bold uppercase tracking-widest animate-in slide-in-from-top-1 ${
+                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-bold uppercase tracking-widest ${
                   message.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
                 }`}>
                    {message.type === 'success' ? <CheckCircle2 size={16}/> : <X size={16}/>} {message.text}
@@ -301,66 +292,48 @@ if (crearAcceso && !currentUserId) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-[10px] text-slate-500 uppercase font-black mb-2 block ml-2">Nombre y Apellido</label>
-                  <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-amber-500 transition-all text-white" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ej: Joaquin Rodriguez" />
+                  <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-amber-500 text-white" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-500 uppercase font-black mb-2 block ml-2">Email</label>
-                  <input type="email" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-amber-500 text-white" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="cliente@correo.com" />
+                  <input type="email" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-amber-500 text-white" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-500 uppercase font-black mb-2 block ml-2">Teléfono</label>
-                  <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-amber-500 text-white" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="Teléfono de contacto" />
-                </div>
-                <div className="col-span-2">
-                   <label className="text-[10px] text-slate-500 uppercase font-black mb-2 block ml-2">Dirección Residencial</label>
-                   <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-amber-500 text-white" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Calle, Número, Ciudad..." />
+                  <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl outline-none focus:border-amber-500 text-white" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                 </div>
               </div>
 
-              {/* SECCIÓN ACCESO AL SISTEMA - Solo disponible si el cliente no tiene user_id aún */}
               {!editingClient?.user_id && (
-                <div className="bg-slate-950/50 border border-slate-800 p-6 rounded-[2rem] space-y-4 shadow-inner">
+                <div className="bg-slate-950/50 border border-slate-800 p-6 rounded-[2rem] space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500"><Lock size={18} /></div>
                       <div>
                         <p className="text-[10px] font-black uppercase text-white">¿Habilitar acceso al sistema?</p>
-                        <p className="text-[9px] text-slate-500 uppercase font-bold">Podrá consultar sus presupuestos online</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-bold text-slate-500">Podrá consultar sus presupuestos online</p>
                       </div>
                     </div>
-                    <input 
-                      type="checkbox" 
-                      className="w-6 h-6 rounded-lg accent-amber-500 cursor-pointer" 
-                      checked={crearAcceso} 
-                      onChange={(e) => setCrearAcceso(e.target.checked)} 
-                    />
+                    <input type="checkbox" className="w-6 h-6 rounded-lg accent-amber-500 cursor-pointer" checked={crearAcceso} onChange={(e) => setCrearAcceso(e.target.checked)} />
                   </div>
 
                   {crearAcceso && (
                     <div className="animate-in slide-in-from-top-2 duration-200">
                       <label className="text-[10px] text-slate-500 uppercase font-black mb-2 block ml-2">Establecer Contraseña</label>
-                      <input 
-                        type="password" 
-                        placeholder="Mínimo 6 caracteres" 
-                        className="w-full bg-slate-950 border border-slate-700 p-4 rounded-2xl outline-none focus:border-emerald-500 text-emerald-500 transition-all font-mono" 
-                        value={password} 
-                        onChange={e => setPassword(e.target.value)} 
-                      />
+                      <input type="password" placeholder="Mínimo 6 caracteres" className="w-full bg-slate-950 border border-slate-700 p-4 rounded-2xl outline-none focus:border-emerald-500 text-emerald-500 transition-all font-mono" value={password} onChange={e => setPassword(e.target.value)} />
                     </div>
                   )}
                 </div>
               )}
 
               <div className="flex gap-4 pt-4">
-                <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-800 text-slate-400 font-bold py-4 rounded-2xl hover:bg-slate-700 hover:text-white transition-all uppercase text-[10px] tracking-widest">
-                  Cerrar
-                </button>
+                <button onClick={() => setShowModal(false)} className="flex-1 bg-slate-800 text-slate-400 font-bold py-4 rounded-2xl hover:bg-slate-700 hover:text-white transition-all uppercase text-[10px] tracking-widest">Cerrar</button>
                 <button 
                   onClick={saveClient} 
                   disabled={loading} 
-                  className="flex-1 bg-amber-600 text-white font-black py-4 rounded-2xl hover:bg-amber-500 transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-amber-900/20"
+                  className="flex-1 bg-amber-600 text-white font-black py-4 rounded-2xl hover:bg-amber-500 transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="animate-spin" size={16}/> : (editingClient ? "Actualizar Datos" : "Registrar Cliente")}
+                  {loading ? <Loader2 className="animate-spin" size={16}/> : (editingClient ? "Actualizar" : "Registrar")}
                 </button>
               </div>
             </div>
