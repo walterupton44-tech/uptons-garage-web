@@ -34,6 +34,7 @@ export interface Client {
 export interface AppUser {
   id: string;
   email: string;
+  name?: string;
   // Cambiamos el string literal por el Enum o permitimos las opciones correctas
   role: 'admin' | 'mecanico' | 'cliente' | 'ADMIN' | 'MECHANIC' | 'CLIENT'; 
   client_id?: string | null;
