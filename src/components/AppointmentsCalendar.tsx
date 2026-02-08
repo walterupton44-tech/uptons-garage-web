@@ -13,7 +13,6 @@ import {
   endOfWeek 
 } from "date-fns";
 import { es } from "date-fns/locale";
-import { Appointment } from "../types";
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -23,12 +22,10 @@ import {
   Car, 
   Plus, 
   X, 
-  AlertCircle,
   MessageCircle 
 } from "lucide-react";
 import NewAppointmentModal from "./NewAppointmentModal";
 
-// 1. FUNCIONES AUXILIARES (Fuera del componente para que no se pierdan)
 const getStatusStyles = (status: string) => {
   switch (status?.toLowerCase()) {
     case "pendiente": return "bg-amber-500/20 text-amber-500 border-amber-500/30";
@@ -41,7 +38,7 @@ const getStatusStyles = (status: string) => {
 
 export default function AppointmentsCalendar() {
   const { currentUser } = useAuth();
-  const [appointments, setAppointments] = useState<any[]>([]); // Usamos any[] temporalmente para evitar choques con types.ts
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -54,19 +51,35 @@ export default function AppointmentsCalendar() {
   const fetchAppointments = async () => {
     setLoading(true);
     try {
+      // 1. Obtener perfil para asegurar el client_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('client_id, role')
+        .eq('id', currentUser?.id)
+        .single();
+
       let query = supabase
         .from("appointments")
-        .select(`
-          *,
-          clients ( name, phone ), 
-          vehicles ( plate )
-        `);
+        .select(`*, clients ( name, phone ), vehicles ( plate )`);
 
-      if (isCliente && currentUser?.client_id) {
-        query = query.eq("client_id", currentUser.client_id);
+      // 2. Aplicar filtro de seguridad
+      const userRole = profile?.role?.toLowerCase() || currentUser?.role?.toLowerCase();
+      const isClientRole = userRole === 'cliente' || userRole === 'client';
+
+      if (isClientRole) {
+        const finalClientId = profile?.client_id || currentUser?.client_id;
+        if (finalClientId) {
+          query = query.eq("client_id", finalClientId);
+        } else {
+          setAppointments([]);
+          setLoading(false);
+          return;
+        }
       }
 
+      // 3. Ejecutar consulta y cerrar la lógica correctamente
       const { data, error } = await query.order("time", { ascending: true });
+      
       if (error) throw error;
       setAppointments(data || []);
     } catch (err) {
@@ -77,10 +90,9 @@ export default function AppointmentsCalendar() {
   };
 
   useEffect(() => {
-    fetchAppointments();
+    if (currentUser) fetchAppointments();
   }, [currentUser]);
 
-  // 2. FUNCIONES DE WHATSAPP RE-INSERTADAS
   const enviarConfirmacionWhatsApp = (ap: any) => {
     const telefono = ap.clients?.phone;
     if (!telefono) return alert("El cliente no tiene teléfono.");
@@ -98,7 +110,6 @@ export default function AppointmentsCalendar() {
     window.open(`https://wa.me/${telefono.replace(/\D/g, "")}?text=${mensaje}`, '_blank');
   };
 
-  // 3. LÓGICA DEL CALENDARIO (Para arreglar el error de calendarDays)
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calendarDays = eachDayOfInterval({
@@ -130,14 +141,13 @@ export default function AppointmentsCalendar() {
   }
 
   return (
-    
     <div className="p-6 bg-slate-900 min-h-screen text-white font-sans">
-      {/* HEADER */}
-       {/* BORRAR ESTO DESPUÉS DE PROBAR */}
-<div className="fixed top-0 left-0 z-[9999] bg-red-600 text-white text-[10px] p-2 font-mono">
-  DEBUG: Rol: {currentUser?.role} | ID Cliente: {currentUser?.client_id || 'FALTA ID'} | esCliente: {isCliente ? 'SÍ' : 'NO'}
-</div>
-  <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      {/* DEBUG HEADER */}
+      <div className="fixed top-0 left-0 z-[9999] bg-red-600 text-white text-[10px] p-2 font-mono">
+        DEBUG: Rol: {currentUser?.role} | ID Cliente: {currentUser?.client_id || 'FALTA ID'} | esCliente: {isCliente ? 'SÍ' : 'NO'}
+      </div>
+
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div className="flex items-center gap-4">
           <div className="bg-amber-600 p-2 rounded-xl shadow-lg transform -rotate-2">
             <CalendarIcon size={24} className="text-white" />
@@ -172,7 +182,7 @@ export default function AppointmentsCalendar() {
         </button>
       </div>
 
-      {/* STATS (Solo Admin) */}
+      {/* STATS */}
       {!isCliente && (
         <div className="mb-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3 bg-slate-800/50 border border-slate-700 p-6 rounded-[2rem]">
@@ -198,7 +208,7 @@ export default function AppointmentsCalendar() {
       )}
 
       {/* GRID CALENDARIO */}
-      <div className="bg-slate-800 rounded-[2.5rem] border border-slate-700 overflow-hidden">
+      <div className="bg-slate-800 rounded-[2.5rem] border border-slate-700 overflow-hidden shadow-2xl">
         <div className="grid grid-cols-7 border-b border-slate-700 bg-slate-900/80">
           {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(dia => (
             <div key={dia} className="py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">{dia}</div>
@@ -224,7 +234,7 @@ export default function AppointmentsCalendar() {
                 <div className="mt-3 space-y-1">
                   {turns.slice(0, 2).map(t => (
                     <div key={t.id} className="text-[7px] truncate px-2 py-1 rounded-lg bg-slate-950/80 border border-slate-700 text-amber-500 font-black uppercase">
-                      {t.time.substring(0,5)} • {isCliente ? "MI TURNO" : (t.clients?.name || 'Cliente')}
+                      {t.time?.substring(0,5)} • {isCliente ? "MI TURNO" : (t.clients?.name || 'Cliente')}
                     </div>
                   ))}
                 </div>
@@ -234,7 +244,7 @@ export default function AppointmentsCalendar() {
         </div>
       </div>
 
-      {/* MODAL DETALLE DEL DÍA */}
+      {/* MODAL DETALLE */}
       {selectedDay && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 border border-slate-700 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden">
@@ -246,11 +256,11 @@ export default function AppointmentsCalendar() {
               {appointments.filter(ap => ap.date === selectedDay).map(ap => (
                 <div key={ap.id} className={`p-5 rounded-3xl border ${getStatusStyles(ap.status)} shadow-lg`}>
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-lg font-black italic">{ap.time.substring(0,5)} hs</span>
+                    <span className="text-lg font-black italic">{ap.time?.substring(0,5)} hs</span>
                     {!isCliente && (
                       <div className="flex gap-2">
-                        <button onClick={() => enviarRecordatorioWhatsApp(ap)} className="p-2 bg-blue-500/20 rounded-xl hover:bg-blue-500 hover:text-white transition-all"><Clock size={14} /></button>
-                        <button onClick={() => enviarConfirmacionWhatsApp(ap)} className="p-2 bg-emerald-500/20 rounded-xl hover:bg-emerald-500 hover:text-white transition-all"><MessageCircle size={14} /></button>
+                        <button onClick={() => enviarRecordatorioWhatsApp(ap)} className="p-2 bg-blue-500/20 rounded-xl hover:bg-blue-500 transition-all"><Clock size={14} /></button>
+                        <button onClick={() => enviarConfirmacionWhatsApp(ap)} className="p-2 bg-emerald-500/20 rounded-xl hover:bg-emerald-500 transition-all"><MessageCircle size={14} /></button>
                       </div>
                     )}
                   </div>
@@ -261,6 +271,9 @@ export default function AppointmentsCalendar() {
                   </div>
                 </div>
               ))}
+              {appointments.filter(ap => ap.date === selectedDay).length === 0 && (
+                <p className="text-center py-10 text-slate-500 italic uppercase text-[10px] font-black tracking-widest">No hay turnos agendados</p>
+              )}
             </div>
             <div className="p-6 bg-slate-900/50 border-t border-slate-700 flex gap-3">
               <button onClick={() => setSelectedDay(null)} className="flex-1 bg-slate-700 text-white font-black py-4 rounded-2xl uppercase text-[10px]">Cerrar</button>
@@ -273,7 +286,7 @@ export default function AppointmentsCalendar() {
       <NewAppointmentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        preselectedDate={preselectedDate}
+        preselectedDate={preselectedDate || undefined}
         onCreated={fetchAppointments}
       />
     </div>
