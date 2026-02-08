@@ -133,10 +133,11 @@ export default function AppointmentsCalendar() {
     
     <div className="p-6 bg-slate-900 min-h-screen text-white font-sans">
       {/* HEADER */}
-      <div className="bg-red-500 text-white p-2 text-[10px]">
-  DEBUG: Rol actual: {currentUser?.role} | ¿Es Cliente?: {isCliente ? "SI" : "NO"} | ID: {currentUser?.client_id}
+       {/* BORRAR ESTO DESPUÉS DE PROBAR */}
+<div className="fixed top-0 left-0 z-[9999] bg-red-600 text-white text-[10px] p-2 font-mono">
+  DEBUG: Rol: {currentUser?.role} | ID Cliente: {currentUser?.client_id || 'FALTA ID'} | esCliente: {isCliente ? 'SÍ' : 'NO'}
 </div>
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+  <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div className="flex items-center gap-4">
           <div className="bg-amber-600 p-2 rounded-xl shadow-lg transform -rotate-2">
             <CalendarIcon size={24} className="text-white" />
