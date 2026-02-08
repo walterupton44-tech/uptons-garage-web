@@ -43,7 +43,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   
-  // NUEVOS ESTADOS PARA ROLES
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
 
@@ -64,7 +63,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Obtener información del usuario actual
       const { data: { user } } = await supabase.auth.getUser();
       
       let role = 'cliente';
@@ -79,37 +77,41 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
         role = profile?.role || 'cliente';
         setUserRole(role);
 
-        // Si es cliente, buscamos su ID en la tabla de clientes
         if (role === 'cliente') {
           const { data: clientData } = await supabase
             .from('clients')
-            .select('id')
+            .select('id, name')
             .eq('user_id', user.id)
             .single();
           mappedClientId = clientData?.id;
           setCurrentClientId(mappedClientId);
+          // Si es cliente, solo cargamos SU información en la lista de clientes
+          if (clientData) setClients([clientData]);
         }
       }
 
-      // 2. Construir la Query de Vehículos
+      // Query de Vehículos
       let query = supabase.from("vehicles").select("*").order("created_at", { ascending: false });
 
       if (role === 'cliente' && mappedClientId) {
-        // SEGURIDAD: El cliente solo ve sus autos
         query = query.eq("client_id", mappedClientId);
       } else if (queryClientId) {
-        // Filtro de URL para Admin
         query = query.eq("client_id", queryClientId);
       }
 
       const { data: vData } = await query;
       const currentVehicles = vData || [];
 
-      // 3. Carga de metadatos (Clientes, Marcas, etc)
+      // Carga de metadatos
+      // Solo cargamos todos los clientes si el usuario es ADMIN
       const [resClients, resAutos] = await Promise.all([
-        supabase.from("clients").select("id, name").order("name"),
+        role === 'admin' 
+          ? supabase.from("clients").select("id, name").order("name")
+          : Promise.resolve({ data: [] }),
         supabase.from("autos").select("id, marcas").order("marcas")
       ]);
+
+      if (role === 'admin') setClients(resClients.data || []);
 
       const usedModelIds = [...new Set(currentVehicles.map(v => v.modelo))].filter(Boolean);
       const usedMotorIds = [...new Set(currentVehicles.map(v => v.motores))].filter(Boolean);
@@ -120,7 +122,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
       ]);
 
       setVehicles(currentVehicles);
-      setClients(resClients.data || []);
       setAllAutos(resAutos.data || []);
       setAutoNames(Object.fromEntries((resAutos.data || []).map(a => [String(a.id), a.marcas])));
       setModelNames(Object.fromEntries((resModels.data || []).map(m => [String(m.idmod), m.modelos])));
@@ -136,7 +137,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
     fetchData(); 
   }, [fetchData]);
 
-  // --- MANEJO DE MARCAS/MODELOS ---
   const handleAutoChange = async (autoId: string) => {
     setFormData({ ...formData, autos: autoId, modelo: "", motores: "" });
     const { data } = await supabase.from("modelo")
@@ -169,7 +169,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
     } else {
       setEditingVehicle(null);
       setFormData({ 
-        // Si es cliente, pre-asignamos su ID
         client_id: userRole === 'cliente' ? (currentClientId || "") : (queryClientId || ""), 
         plate: "", autos: "", modelo: "", 
         motores: "", year: "", matricula: "", km: "" 
@@ -181,14 +180,20 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
   };
 
   const saveVehicle = async () => {
-    if (!formData.plate || !formData.client_id) {
+    // Forzamos el client_id si es cliente para evitar manipulaciones
+    const finalData = {
+      ...formData,
+      client_id: userRole === 'cliente' ? currentClientId : formData.client_id
+    };
+
+    if (!finalData.plate || !finalData.client_id) {
       alert("La patente y el propietario son obligatorios");
       return;
     }
 
     const { error } = editingVehicle 
-      ? await supabase.from("vehicles").update(formData).eq("id", editingVehicle.id)
-      : await supabase.from("vehicles").insert([formData]);
+      ? await supabase.from("vehicles").update(finalData).eq("id", editingVehicle.id)
+      : await supabase.from("vehicles").insert([finalData]);
 
     if (!error) { 
       setShowModal(false); 
@@ -207,7 +212,7 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
   };
 
   const filteredVehicles = vehicles.filter(v => {
-    if (userRole === 'cliente') return true; // El cliente ya tiene la lista filtrada desde la DB
+    if (userRole === 'cliente') return true; 
     const s = searchTerm.toLowerCase().trim();
     if (!s) return true;
 
@@ -216,15 +221,13 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
     const modelo = modelNames[v.modelo] || "";
     const motor = motorNames[v.motores] || "";
     const patente = v.matricula || "";
-    const chasis = v.plate || "";
 
     return (
       cliente.toLowerCase().includes(s) ||
       marca.toLowerCase().includes(s) ||
       modelo.toLowerCase().includes(s) ||
       motor.toLowerCase().includes(s) ||
-      patente.toLowerCase().includes(s) ||
-      chasis.toLowerCase().includes(s)
+      patente.toLowerCase().includes(s)
     );
   });
 
@@ -244,7 +247,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
-          {/* OCULTAR BÚSQUEDA SI ES CLIENTE */}
           {userRole !== 'cliente' && (
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
@@ -254,7 +256,7 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
                 className="bg-slate-800 border border-slate-700 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none focus:border-orange-500 transition-all w-full md:w-80 text-white"
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)}
-              />                                                                                                      
+              />                                                                                                                                                                                                  
             </div>
           )}
           
@@ -321,9 +323,11 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
                     <button onClick={() => openModal(v)} className="p-2 bg-slate-900 hover:bg-orange-600 rounded-xl transition-all border border-slate-800">
                       <Pencil size={14} className="text-slate-400 group-hover:text-white" />
                     </button>
-                    <button onClick={() => deleteVehicle(v.id)} className="p-2 bg-slate-900 hover:bg-red-600 rounded-xl transition-all border border-slate-800">
-                      <Trash2 size={14} className="text-slate-400 group-hover:text-white" />
-                    </button>
+                    {userRole === 'admin' && (
+                      <button onClick={() => deleteVehicle(v.id)} className="p-2 bg-slate-900 hover:bg-red-600 rounded-xl transition-all border border-slate-800">
+                        <Trash2 size={14} className="text-slate-400 group-hover:text-white" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -332,7 +336,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
         </table>
       </div>
 
-      {/* MODAL CON RESTRICCIÓN DE PROPIETARIO */}
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl">
@@ -346,11 +349,10 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
             </div>
             
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Propietario: Bloqueado si es cliente */}
               <div className="col-span-2 space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Propietario</label>
                 <select 
-                  disabled={userRole === 'cliente'} // BLOQUEADO PARA CLIENTES
+                  disabled={userRole === 'cliente'}
                   className={`w-full bg-slate-800 border border-slate-700 p-4 rounded-2xl text-xs text-white outline-none focus:border-orange-500 ${userRole === 'cliente' ? 'opacity-50 cursor-not-allowed' : ''}`}
                   value={formData.client_id}
                   onChange={(e) => setFormData({...formData, client_id: e.target.value})}
@@ -361,7 +363,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
                 {userRole === 'cliente' && <p className="text-[9px] text-orange-500 font-bold px-2 uppercase tracking-widest">Registrando a tu nombre automáticamente</p>}
               </div>
 
-              {/* Matrícula y Chasis */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Matrícula (Patente)</label>
                 <input 
@@ -379,7 +380,6 @@ export default function VehiclesList({ onRefresh }: { onRefresh?: () => void }) 
                 />
               </div>
 
-              {/* Marca y Modelo */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Marca</label>
                 <select 
