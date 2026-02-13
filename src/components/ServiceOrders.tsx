@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
 import { 
   Search, Save, Loader2, ClipboardList, Clock, 
-  PackageCheck, MessageCircle, History, ArrowLeftRight, Hash, ShieldCheck
+  PackageCheck, MessageCircle, Hash, ShieldCheck, ArrowLeftRight, Car
 } from "lucide-react";
 
 export default function ServiceOrders() {
@@ -13,7 +13,6 @@ export default function ServiceOrders() {
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [presupuestosVehiculo, setPresupuestosVehiculo] = useState<any[]>([]);
   
-  // ESTADOS DE ROL
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
 
@@ -26,7 +25,6 @@ export default function ServiceOrders() {
   const fetchOrdenes = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Obtener Rol y Datos del Usuario
       const { data: { user } } = await supabase.auth.getUser();
       let role = 'cliente';
       let mappedClientId = null;
@@ -43,7 +41,6 @@ export default function ServiceOrders() {
         }
       }
 
-      // 2. Query Filtrada
       let query = supabase
         .from("service_orders")
         .select(`*, clients(name, phone), vehicles(matricula, plate)`)
@@ -72,7 +69,7 @@ export default function ServiceOrders() {
   const importarPresupuestoAlForm = async (p: any) => {
     if (!p) return;
     const textoServicios = await traducirItemsPresupuesto(p.items);
-    const descripcionFinal = ` ${textoServicios}${p.notas ? ' | NOTAS: ' + p.notas : ''}`;
+    const descripcionFinal = `${textoServicios}${p.notas ? ' | NOTAS: ' + p.notas : ''}`;
     setFormData(prev => ({ ...prev, description: descripcionFinal }));
   };
 
@@ -124,20 +121,20 @@ export default function ServiceOrders() {
   };
 
   return (
-    <div className="p-6 bg-[#0B0F1A] min-h-screen text-slate-200">
+    <div className="p-4 md:p-6 bg-[#0B0F1A] min-h-screen text-slate-200">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* BUSCADOR SUPERIOR (SÓLO ADMIN/MECÁNICO) */}
-        <div className="bg-slate-800/40 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-700/50 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-900/40 transform -rotate-2">
+        {/* HEADER RESPONSIVO */}
+        <div className="bg-slate-800/40 backdrop-blur-xl p-5 md:p-6 rounded-[2rem] border border-slate-700/50 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg transform -rotate-2 shrink-0">
               <ClipboardList size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black uppercase italic text-white tracking-tighter">
-                {userRole === 'cliente' ? "Mis Reparaciones" : "Gestión de Órdenes"}
+              <h1 className="text-xl font-black uppercase italic text-white tracking-tighter leading-none">
+                {userRole === 'cliente' ? "Mi Taller" : "Órdenes"}
               </h1>
-              <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.2em]">Estado del Taller</p>
+              <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">Upton's Garage</p>
             </div>
           </div>
           
@@ -145,17 +142,20 @@ export default function ServiceOrders() {
             <div className="relative w-full md:w-96">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input 
-                className="w-full bg-slate-900/50 border border-slate-700 py-3 pl-12 pr-4 rounded-xl outline-none focus:border-orange-500/50 text-white transition-all shadow-inner"
-                placeholder="Buscar vehículo..."
+                className="w-full bg-slate-900/50 border border-slate-700 py-3.5 pl-12 pr-4 rounded-2xl outline-none focus:border-orange-500/50 text-white transition-all shadow-inner"
+                placeholder="Buscar patente o matricula..."
                 value={busqueda}
                 onChange={(e) => { setBusqueda(e.target.value); buscarVehiculos(e.target.value); }}
               />
               {vehiculos.length > 0 && (
-                <div className="absolute w-full mt-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden z-50 shadow-2xl">
+                <div className="absolute w-full mt-2 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden z-50 shadow-2xl">
                   {vehiculos.map(v => (
-                    <div key={v.id} onClick={() => handleSelectVehicle(v)} className="p-3 hover:bg-orange-600/10 cursor-pointer flex justify-between border-b border-slate-800 transition-colors">
-                      <span className="font-bold text-white uppercase">{v.matricula || v.plate}</span>
-                      <span className="text-[10px] text-slate-500 uppercase">{v.clients?.name}</span>
+                    <div key={v.id} onClick={() => handleSelectVehicle(v)} className="p-4 hover:bg-orange-600/10 cursor-pointer flex justify-between border-b border-slate-800/50 transition-colors">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-white uppercase">{v.matricula || v.plate}</span>
+                        <span className="text-[9px] text-slate-500 uppercase font-bold">{v.clients?.name}</span>
+                      </div>
+                      <Car size={16} className="text-slate-700" />
                     </div>
                   ))}
                 </div>
@@ -164,91 +164,118 @@ export default function ServiceOrders() {
           )}
         </div>
 
-        {/* FORMULARIO: OCULTO PARA CLIENTES */}
+        {/* FORMULARIO: DISEÑO ADAPTADO A MÓVIL */}
         {userRole !== 'cliente' ? (
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in duration-500">
             <div className="lg:col-span-1 space-y-6">
-              <div className="bg-slate-800/50 p-6 rounded-[2rem] border border-slate-700/50 shadow-xl flex flex-col items-center">
+              {/* KILOMETRAJE - DISEÑO IMPACTANTE */}
+              <div className="bg-slate-800/50 p-6 rounded-[2.5rem] border border-slate-700/50 shadow-xl flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-2">
                   <Hash size={12} className="text-orange-500" />
-                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Kilómetros</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Kilometraje Actual</label>
                 </div>
                 <input 
                   type="number" required
-                  className="bg-transparent text-5xl font-black text-white outline-none w-full text-center mb-1"
+                  className="bg-transparent text-5xl font-black text-white outline-none w-full text-center placeholder:text-slate-800"
+                  placeholder="0"
                   value={formData.kilometraje}
                   onChange={(e) => setFormData({...formData, kilometraje: e.target.value})}
                 />
               </div>
 
-              <div className="bg-slate-800/50 p-5 rounded-[2rem] border border-slate-700/50 shadow-xl">
+              {/* PRESUPUESTOS RECIENTES (HORIZONTAL EN MÓVIL) */}
+              <div className="bg-slate-800/50 p-6 rounded-[2.5rem] border border-slate-700/50 shadow-xl">
                 <h2 className="text-[10px] font-black text-amber-500 uppercase mb-4 tracking-widest flex items-center gap-2">
-                  <ArrowLeftRight size={14}/> Presupuestos Recientes
+                  <ArrowLeftRight size={14}/> Importar del Historial
                 </h2>
-                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
-                  {presupuestosVehiculo.map(p => (
-                    <button type="button" key={p.id} onClick={() => importarPresupuestoAlForm(p)} className="w-full text-left p-4 rounded-2xl bg-slate-900/50 border border-slate-700 hover:border-emerald-500 transition-all group active:scale-95">
-                      <p className="text-lg text-emerald-400 font-mono font-bold">${(p.total || 0).toLocaleString()}</p>
-                      <p className="text-[8px] text-slate-600 mt-2 italic group-hover:text-emerald-500">Click para importar ↓</p>
-                    </button>
-                  ))}
+                <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto pb-2 lg:pb-0 custom-scrollbar lg:max-h-[300px]">
+                  {presupuestosVehiculo.length === 0 ? (
+                    <p className="text-[10px] text-slate-600 italic uppercase">Sin presupuestos</p>
+                  ) : (
+                    presupuestosVehiculo.map(p => (
+                      <button type="button" key={p.id} onClick={() => importarPresupuestoAlForm(p)} className="flex-shrink-0 w-48 lg:w-full text-left p-4 rounded-2xl bg-slate-900/50 border border-slate-700 hover:border-emerald-500/50 group transition-all">
+                        <p className="text-xs text-slate-400 font-bold uppercase truncate">{traducirItemsPresupuesto(p.items)}</p>
+                        <p className="text-lg text-emerald-400 font-mono font-bold mt-1">${(p.total || 0).toLocaleString()}</p>
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="lg:col-span-3 bg-slate-800/30 backdrop-blur-sm p-8 rounded-[2.5rem] border border-slate-700/50 shadow-xl flex flex-col justify-between gap-6">
+            {/* DESCRIPCIÓN Y BOTÓN */}
+            <div className="lg:col-span-3 bg-slate-800/30 p-6 md:p-8 rounded-[2.5rem] border border-slate-700/50 shadow-xl flex flex-col gap-6">
               <textarea 
                 required
-                placeholder="Describe el problema o los servicios..."
-                className="w-full bg-[#0B0F1A]/60 border border-slate-700 p-6 rounded-[2rem] outline-none text-white text-base h-64 resize-none focus:border-orange-500/50 transition-all"
+                placeholder="Detalla los trabajos a realizar..."
+                className="w-full bg-[#0B0F1A]/60 border border-slate-700 p-6 rounded-[2rem] outline-none text-white text-base h-48 lg:h-64 resize-none focus:border-orange-500/50 transition-all"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
               />
-              <button type="submit" disabled={loading || !selectedVehicle} className={`w-full p-6 rounded-2xl flex items-center justify-center gap-4 font-black uppercase italic tracking-[0.2em] transition-all ${!selectedVehicle ? "bg-slate-700 text-slate-500" : "bg-orange-600 hover:bg-orange-500 text-white shadow-2xl"}`}>
-                {loading ? <Loader2 className="animate-spin" /> : <Save />} Confirmar y Abrir Orden
+              <button 
+                type="submit" 
+                disabled={loading || !selectedVehicle} 
+                className={`w-full p-6 rounded-[2rem] flex items-center justify-center gap-4 font-black uppercase italic tracking-[0.2em] transition-all shadow-lg active:scale-95 ${
+                  selectedVehicle ? 'bg-orange-600 text-white hover:bg-orange-500 shadow-orange-900/20' : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                }`}
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <Save />} 
+                {selectedVehicle ? 'Abrir Orden de Trabajo' : 'Selecciona un vehículo'}
               </button>
             </div>
           </form>
         ) : (
-          /* MENSAJE PARA CLIENTE SI NO HAY ÓRDENES */
           ordenesPendientes.length === 0 && (
-            <div className="p-20 text-center bg-slate-800/20 rounded-[3rem] border border-dashed border-slate-700">
-              <ShieldCheck size={48} className="mx-auto text-slate-700 mb-4" />
-              <p className="text-slate-500 uppercase font-black text-xs tracking-widest">No tienes órdenes activas en este momento</p>
+            <div className="py-20 text-center bg-slate-800/20 rounded-[3rem] border border-dashed border-slate-700">
+              <ShieldCheck size={48} className="mx-auto text-slate-800 mb-4" />
+              <p className="text-slate-500 uppercase font-black text-[10px] tracking-widest">No tienes reparaciones en curso</p>
             </div>
           )
         )}
 
-        {/* LISTADO DE ÓRDENES ACTIVAS (COMÚN A AMBOS PERO CON ACCIONES FILTRADAS) */}
+        {/* LISTADO DE ÓRDENES */}
         <div className="space-y-4 pt-4">
-          <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 px-2 flex items-center gap-2">
-            <Clock size={14} className="text-orange-500" /> 
-            {userRole === 'cliente' ? "Seguimiento de mis Vehículos" : `Órdenes en Taller (${ordenesPendientes.length})`}
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 px-4 flex items-center gap-2">
+            <Clock size={12} /> {userRole === 'cliente' ? "Seguimiento en Vivo" : `En Taller Hoy (${ordenesPendientes.length})`}
           </h2>
+          
           <div className="grid grid-cols-1 gap-4">
             {ordenesPendientes.map((order) => (
-              <div key={order.id} className="bg-slate-800/20 backdrop-blur-sm border border-slate-700/30 p-5 rounded-[2.5rem] flex flex-col lg:flex-row items-center justify-between gap-6 hover:border-orange-500/20 transition-all group">
-                <div className="flex items-center gap-6 w-full lg:w-auto">
-                  <div className="bg-[#0B0F1A] px-6 py-4 rounded-2xl border border-slate-800 text-center min-w-[140px] shadow-lg">
-                    <p className="text-xl font-black text-white uppercase tracking-tighter">{order.vehicles?.matricula || order.vehicles?.plate}</p>
-                    <span className="bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest">{order.kilometraje} KM</span>
+              <div key={order.id} className="bg-slate-800/40 border border-slate-700/30 p-4 md:p-6 rounded-[2.5rem] flex flex-col lg:flex-row items-center justify-between gap-6 group hover:border-orange-500/30 transition-all">
+                
+                <div className="flex flex-col sm:flex-row items-center gap-6 w-full lg:w-auto">
+                  {/* PATENTE Y KM */}
+                  <div className="bg-[#0B0F1A] w-full sm:w-auto px-8 py-5 rounded-[2rem] border border-slate-800 text-center shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-orange-600/50"></div>
+                    <p className="text-2xl font-black text-white uppercase tracking-tighter leading-none mb-1">
+                      {order.vehicles?.matricula || order.vehicles?.plate}
+                    </p>
+                    <span className="text-[10px] font-mono text-orange-500 font-bold uppercase tracking-widest">
+                      {order.kilometraje?.toLocaleString()} KM
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-black text-white uppercase">{order.clients?.name}</h3>
-                    <p className="text-xs text-slate-400 font-medium">Estado: <span className="text-orange-500">{order.status}</span></p>
-                    <p className="text-xs text-slate-500 italic line-clamp-1">"{order.description}"</p>
+
+                  <div className="text-center sm:text-left space-y-1">
+                    <h3 className="text-lg font-black text-white uppercase italic tracking-tight">{order.clients?.name}</h3>
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                        Estado: <span className="text-orange-500">{order.status}</span>
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-500 italic line-clamp-2 max-w-md mt-2 leading-relaxed">"{order.description}"</p>
                   </div>
                 </div>
                 
-                <div className="flex gap-2 w-full lg:w-auto">
-                  {/* SOLO EL ADMIN VE "FINALIZAR" */}
+                {/* ACCIONES */}
+                <div className="flex gap-3 w-full lg:w-auto">
                   {userRole !== 'cliente' && (
-                    <button className="flex-1 lg:w-auto flex items-center justify-center gap-2 bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white px-6 py-3 rounded-xl border border-green-600/20 transition-all">
-                      <PackageCheck size={18} /> Finalizar
+                    <button className="flex-1 lg:w-auto flex items-center justify-center gap-3 bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white px-8 py-4 rounded-2xl border border-green-600/20 transition-all font-black uppercase text-[10px] tracking-widest">
+                      <PackageCheck size={18} /> Entregar
                     </button>
                   )}
-                  <button className="flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white p-3 rounded-xl border border-emerald-500/20 transition-all">
-                    <MessageCircle size={18} />
+                  <button className="flex-1 lg:flex-none flex items-center justify-center bg-blue-500/10 hover:bg-blue-600 text-blue-500 hover:text-white px-6 py-4 rounded-2xl border border-blue-500/20 transition-all shadow-lg active:scale-95">
+                    <MessageCircle size={20} />
                   </button>
                 </div>
               </div>

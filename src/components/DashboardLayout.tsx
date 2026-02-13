@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   LayoutDashboard, Users, Car, ClipboardList, CalendarDays, 
-  FileCheck2, ChevronRight, Settings, LogOut,
-  // 1. IMPORTAMOS LOS ICONOS QUE FALTABAN
+  FileCheck2, ChevronRight, Settings, LogOut, Menu, X,
   DollarSign, Receipt, Wallet, Scale, ChevronDown
 } from "lucide-react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
@@ -17,14 +16,28 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Por defecto cerrado en móvil
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [userData, setUserData] = useState<{ id: string; avatar_url?: string; name?: string } | null>(null);
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [adminMenuOpen, setAdminMenuOpen] = useState(false); // Estado para el acordeón de admin
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   
   const [role, setRole] = useState<string | null>(initialRole);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Control de tamaño de pantalla
+  useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 1024;
+      setIsDesktop(desktop);
+      if (desktop) setSidebarOpen(true);
+      else setSidebarOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Ejecutar al inicio
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchUserData = async () => {
     try {
@@ -46,13 +59,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
         }
       }
     } catch (err) {
-      console.error("Error al obtener datos de usuario:", err);
+      console.error("Error:", err);
     }
   };
   
-  useEffect(() => {
-    fetchUserData();
-  }, [initialRole]);
+  useEffect(() => { fetchUserData(); }, [initialRole]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -61,21 +72,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
 
   const labels = {
     es: {
-      inicio: "Inicio",
-      dashboard: "Dashboard",
-      clientes: "Clientes",
-      vehiculos: "Vehículos",
-      ordenes: "Órdenes",
-      agenda: "Agenda",
-      certificados: "Certificados",
-      mantenimiento: "Centro de Control",
-      administracion: "Administración",
-      presupuestos: "Presupuestos",
-      facturacion: "Facturación",
-      gastos: "Gastos",
-      balance: "Balance Mensual",
-      caja: "Caja Diaria",
-      salir: "Cerrar Sesión"
+      inicio: "Inicio", dashboard: "Dashboard", clientes: "Clientes", vehiculos: "Vehículos",
+      ordenes: "Órdenes", agenda: "Agenda", certificados: "Certificados",
+      mantenimiento: "Centro de Control", administracion: "Administración",
+      presupuestos: "Presupuestos", facturacion: "Facturación", gastos: "Gastos",
+      balance: "Balance Mensual", caja: "Caja Diaria", salir: "Cerrar Sesión"
     }
   };
 
@@ -86,7 +87,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
     { id: "vehiculos", label: labels[lang].vehiculos, icon: Car, path: "/vehicles", roles: ['admin', 'mecanico', 'cliente'] },  
     { id: "ordenes", label: labels[lang].ordenes, icon: ClipboardList, path: "/orders", roles: ['admin', 'mecanico', 'cliente'] },
     { id: "agenda", label: labels[lang].agenda, icon: CalendarDays, path: "/agenda", roles: ['admin', 'mecanico', 'cliente'] },  
-    { id: "certificados", label: labels[lang].certificados, icon: FileCheck2, path: "/certificates", roles: ['admin', 'mecanico'] }, // 👈 Coma añadida
+    { id: "certificados", label: labels[lang].certificados, icon: FileCheck2, path: "/certificates", roles: ['admin', 'mecanico'] }, 
     { id: "mantenimiento", label: labels[lang].mantenimiento, icon: Settings, path: "/mantenimiento", roles: ['admin'] },
   ];
 
@@ -100,57 +101,62 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden text-slate-200 font-sans">
-      <aside className={`${sidebarOpen ? "w-72" : "w-24"} bg-slate-900 border-r border-slate-800 transition-all duration-500 flex flex-col z-20`}> 
-        <div onClick={() => navigate("/")} className="p-6 flex items-center justify-between h-24 border-b border-slate-800/50 cursor-pointer"> 
-          <img src={logo} alt="Logo" className={`${sidebarOpen ? "h-max" : "h-10"} w-auto mx-auto`} />
+      
+       {/* OVERLAY PARA MÓVIL CON ESTILO UPTON GARAGE */}
+{!isDesktop && sidebarOpen && (
+  <div 
+    className="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-30 transition-opacity duration-500 animate-in fade-in"
+    onClick={() => setSidebarOpen(false)}
+  >
+    {/* Efecto de brillo naranja en el fondo del overlay */}
+    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent pointer-events-none" />
+  </div>
+)} 
+
+      {/* ASIDE RESPONSIVO */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 lg:relative
+        ${sidebarOpen ? "w-72 translate-x-0" : "w-0 -translate-x-full lg:w-24 lg:translate-x-0"}
+        bg-slate-900 border-r border-slate-800 transition-all duration-300 flex flex-col
+      `}> 
+        <div className="p-6 flex items-center justify-between h-20 md:h-24 border-b border-slate-800/50"> 
+          <img src={logo} alt="Logo" className={`${sidebarOpen ? "h-12" : "h-8"} w-auto mx-auto`} />
+          {!isDesktop && (
+            <button onClick={() => setSidebarOpen(false)} className="text-slate-500"><X /></button>
+          )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto mt-6 space-y-1 px-4 text-left">
-          {/* ITEMS NORMALES */}
+        <nav className="flex-1 overflow-y-auto mt-4 space-y-1 px-4">
           {menuItems
-    .filter(item => {
-      // REGLA DE FILTRADO:
-      // 1. Si el item es 'inicio', SOLO se muestra si el rol es 'cliente'
-      if (item.id === 'inicio') return role === 'cliente';
-      
-      // 2. Para el resto de items, se muestra si el usuario es admin o si su rol está incluido
-      return role === 'admin' || item.roles.includes(role || '');
-    })
-    .map((item) => (
-      <Link 
-        key={item.id} 
-        to={item.path} 
-        className={`flex items-center gap-4 p-4 rounded-xl transition-all ${
-          location.pathname === item.path 
-          ? "bg-orange-600/10 text-orange-500 border border-orange-500/20" 
-          : "text-slate-500 hover:text-slate-200"
-        }`}
-      >
-        <item.icon size={22} />
-        {sidebarOpen && <span className="uppercase text-[11px] font-black tracking-widest">{item.label}</span>}
-      </Link>
-            
-         
-              
-          ))}
+            .filter(item => item.id === 'inicio' ? role === 'cliente' : (role === 'admin' || item.roles.includes(role || '')))
+            .map((item) => (
+              <Link 
+                key={item.id} 
+                to={item.path} 
+                onClick={() => !isDesktop && setSidebarOpen(false)}
+                className={`flex items-center gap-4 p-4 rounded-xl transition-all ${
+                  location.pathname === item.path 
+                  ? "bg-orange-600/10 text-orange-500 border border-orange-500/20" 
+                  : "text-slate-500 hover:text-slate-200"
+                }`}
+              >
+                <item.icon size={22} className="shrink-0" />
+                {sidebarOpen && <span className="uppercase text-[11px] font-black tracking-widest truncate">{item.label}</span>}
+              </Link>
+            ))}
 
-          {/* SECCIÓN ADMINISTRACIÓN (Solo Admin) */}
           {role === 'admin' && sidebarOpen && (
             <div className="mt-4">
-              <button 
-                onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-                className="w-full flex items-center justify-between p-4 text-slate-400 hover:text-white transition-all uppercase text-[11px] font-black tracking-[0.2em]"
-              >
+              <button onClick={() => setAdminMenuOpen(!adminMenuOpen)} className="w-full flex items-center justify-between p-4 text-slate-400 text-[11px] font-black tracking-widest uppercase">
                 <span>{labels[lang].administracion}</span>
-                <ChevronDown size={16} className={`transition-transform ${adminMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={14} className={adminMenuOpen ? "rotate-180" : ""} />
               </button>
-              
               {adminMenuOpen && (
-                <div className="space-y-1 ml-2 border-l border-slate-800">
+                <div className="ml-4 border-l border-slate-800 space-y-1">
                   {adminSubItems.map((sub) => (
-                    <Link key={sub.id} to={sub.path} className={`flex items-center gap-4 p-3 pl-6 rounded-xl transition-all ${location.pathname === sub.path ? "text-orange-500" : "text-slate-500 hover:text-slate-200"}`}>
-                      <sub.icon size={18} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">{sub.label}</span>
+                    <Link key={sub.id} to={sub.path} onClick={() => !isDesktop && setSidebarOpen(false)} className="flex items-center gap-3 p-3 text-slate-500 hover:text-white">
+                      <sub.icon size={16} />
+                      <span className="text-[10px] font-bold uppercase">{sub.label}</span>
                     </Link>
                   ))}
                 </div>
@@ -159,42 +165,47 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
           )}
         </nav>
 
-        {/* FOOTER SIDEBAR */}
-        <div className="p-4 border-t border-slate-800/50">
+        <div className="p-4 border-t border-slate-800/50 space-y-2">
           <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 rounded-xl text-red-500 hover:bg-red-500/10 transition-all">
             <LogOut size={22} />
-            {sidebarOpen && <span className="uppercase text-[11px] font-black tracking-widest">{labels[lang].salir}</span>}
+            {sidebarOpen && <span className="uppercase text-[11px] font-black tracking-widest">Salir</span>}
           </button>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full p-2 text-slate-600 hover:text-orange-500 flex justify-center">
-            <ChevronRight className={sidebarOpen ? "rotate-180" : ""} />
-          </button>
+          {isDesktop && (
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full p-2 text-slate-600 hover:text-orange-500 flex justify-center">
+              <ChevronRight className={sidebarOpen ? "rotate-180" : ""} />
+            </button>
+          )}
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto flex flex-col bg-[#0B0F1A]">
-        <header className="h-24 flex items-center justify-between px-10 border-b border-slate-800/30 bg-slate-900/40 backdrop-blur-xl">
-          <div className="flex flex-col text-left">
-            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">
-              Upton's <span className="text-orange-500">Garage</span>
-            </h2>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Panel de {role}</span>
+      {/* CONTENIDO PRINCIPAL */}
+      <main className="flex-1 overflow-y-auto flex flex-col bg-[#0B0F1A] relative">
+        <header className="h-20 md:h-24 flex items-center justify-between px-4 md:px-10 border-b border-slate-800/30 bg-slate-900/40 backdrop-blur-xl sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            {!isDesktop && (
+              <button onClick={() => setSidebarOpen(true)} className="p-2 text-slate-400 bg-slate-800 rounded-lg"><Menu size={20} /></button>
+            )}
+            <div className="text-left">
+              <h2 className="text-lg md:text-2xl font-black text-white uppercase italic tracking-tighter">
+                Upton's <span className="text-orange-500">Garage</span>
+              </h2>
+            </div>
           </div>
           
-          <div className="flex items-center gap-4">
-             <div className="text-right hidden md:block">
-                <p className="text-[10px] font-black text-white uppercase tracking-tighter">Conectado como</p>
-                <p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">{userData?.name || role}</p>
+          <div className="flex items-center gap-3">
+             <div className="text-right hidden sm:block">
+                <p className="text-[9px] font-black text-white uppercase tracking-tighter leading-none">Conectado como</p>
+                <p className="text-[10px] font-bold text-orange-500 uppercase truncate max-w-[100px]">{userData?.name || role}</p>
              </div>
              
              <button 
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowAccountModal(true); }}
-                className="w-12 h-12 rounded-2xl bg-orange-500 border-2 border-orange-400 flex items-center justify-center text-slate-950 font-black italic hover:scale-105 active:scale-95 transition-all overflow-hidden shadow-lg shadow-orange-500/20"
+                onClick={() => setShowAccountModal(true)}
+                className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-orange-500 border-2 border-orange-400 overflow-hidden hover:scale-105 transition-transform shrink-0"
              >
               {userData?.avatar_url ? (
                 <img src={userData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-orange-600 text-white font-bold uppercase">
+                <div className="w-full h-full flex items-center justify-center bg-orange-600 text-white font-bold">
                   {userData?.name?.charAt(0) || 'U'}
                 </div>
               )}  
@@ -202,7 +213,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
           </div>
         </header>
 
-        <div className="p-8 lg:p-12">
+        {/* CONTENEDOR DE PÁGINAS */}
+        <div className="p-4 md:p-8 lg:p-12 w-full max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>
