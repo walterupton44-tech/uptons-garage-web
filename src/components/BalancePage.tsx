@@ -24,48 +24,63 @@ export default function BalancePage() {
     fetchFinancialData();
   }, [month, year]);
 
-  const fetchFinancialData = async () => {
-    setLoading(true);
-    try {
-      // Definir rango de fechas para el filtro (UTC)
-      const firstDay = `${year}-${String(month).padStart(2, '0')}-01T00:00:00Z`;
-      const lastDay = `${year}-${String(month).padStart(2, '0')}-31T23:59:59Z`;
+ 
+ 
+ const fetchFinancialData = async () => {
+  setLoading(true);
+  try {
+    // 1. Simplificamos el rango de fechas para evitar errores de formato
+    const start = new Date(year, month - 1, 1).toISOString();
+    const end = new Date(year, month, 0, 23, 59, 59).toISOString();
 
-      // 1. Obtener Ingresos Reales desde 'facturas'
-      const { data: invoices } = await supabase
-        .from("facturas")
-        .select("created_at, total, monto_pagado, estado")
-        .gte("created_at", firstDay)
-        .lte("created_at", lastDay);
+    // 2. Traemos las facturas
+    const { data: invoices, error: invError } = await supabase
+      .from("facturas")
+      .select("monto_pagado, total, created_at")
+      .gte("created_at", start)
+      .lte("created_at", end);
 
-      // 2. Obtener Egresos filtrados por fecha
-      const { data: expenses } = await supabase
-        .from("expenses")
-        .select("date, amount, description, category")
-        .gte("date", firstDay.split('T')[0])
-        .lte("date", lastDay.split('T')[0]);
+    if (invError) throw invError;
 
-      // Calculamos sobre monto_pagado para tener el dinero real en mano
-      const totalIngresos = invoices?.reduce((acc, curr) => acc + (Number(curr.monto_pagado) || 0), 0) || 0;
-      const totalEgresos = expenses?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
-      const utilidad = totalIngresos - totalEgresos;
-      const margen = totalIngresos > 0 ? (utilidad / totalIngresos) * 100 : 0;
+    // 3. Traemos los gastos
+    const { data: expenses, error: expError } = await supabase
+      .from("expenses")
+      .select("amount, date, description, category")
+      .gte("date", start.split('T')[0])
+      .lte("date", end.split('T')[0]);
 
-      setStats({
-        ingresos: totalIngresos,
-        egresos: totalEgresos,
-        utilidad: utilidad,
-        margen: Math.round(margen),
-        rawInvoices: invoices || [],
-        rawExpenses: expenses || []
-      });
-    } catch (error) {
-      console.error("Error cargando balance:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (expError) throw expError;
 
+    // 4. Calculamos ingresos 
+    // Si monto_pagado es 0 o null, usamos el total para que al menos veas el monto facturado
+    const totalIngresos = invoices?.reduce((acc, curr) => {
+      const valor = (Number(curr.monto_pagado) > 0) ? Number(curr.monto_pagado) : Number(curr.total);
+      return acc + (valor || 0);
+    }, 0) || 0;
+
+    const totalEgresos = expenses?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
+    
+    const utilidad = totalIngresos - totalEgresos;
+    const margen = totalIngresos > 0 ? (utilidad / totalIngresos) * 100 : 0;
+
+    setStats({
+      ingresos: totalIngresos,
+      egresos: totalEgresos,
+      utilidad: utilidad,
+      margen: Math.round(margen),
+      rawInvoices: invoices || [],
+      rawExpenses: expenses || []
+    });
+  } catch (error) {
+    console.error("Error detallado:", error);
+  } finally {
+    setLoading(false);
+  }
+};
+ 
+ 
+    
+                            
   const exportToPDF = () => {
     const doc = new jsPDF();
     const dateStr = `${month}/${year}`;
