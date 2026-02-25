@@ -132,7 +132,7 @@ export default function GeneradorPresupuesto() {
     } else {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
-      doc.text("UPON'S GARAGE", 15, 25);
+      doc.text("UPTON'S GARAGE", 15, 25);
     }
 
     // Texto de contacto en el encabezado
@@ -140,7 +140,7 @@ export default function GeneradorPresupuesto() {
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text("Servicio Mecánico Profesional", 15, 38);
-    doc.text("Calle Ficticia 123 - Ciudad", 15, 42);
+    doc.text("Lavalle 960 - Puerto Madryn", 15, 42);
 
     // Título PRESUPUESTO a la derecha
     doc.setFontSize(16);
