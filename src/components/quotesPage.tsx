@@ -114,108 +114,108 @@ export default function GeneradorPresupuesto() {
   };
 
   
-  
   const generarPDF = async () => {
     if (items.length === 0 || !clienteSel) return;
     
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // --- 1. ENCABEZADO Y LOGO ---
-    doc.setFillColor(30, 41, 59); // Color azul pizarra oscuro (slate-800)
-    doc.rect(0, 0, pageWidth, 40, 'F');
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("UPON'S GARAGE", 15, 20);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("Servicio Mecánico Profesional", 15, 28);
-    doc.text("Calle Ficticia 123 - Ciudad", 15, 33);
+    // --- 1. CARGA DEL LOGO DESDE /public ---
+    // Asegúrate de que la extensión sea la correcta (.png o .jpg)
+    const logoUrl = "/LogoT3.png"; 
 
-    // Etiqueta de Presupuesto a la derecha
-    doc.setFontSize(16);
-    doc.text("PRESUPUESTO", pageWidth - 15, 25, { align: 'right' });
-    doc.setFontSize(10);
-    doc.text(`#${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`, pageWidth - 15, 32, { align: 'right' });
+    // --- 2. ENCABEZADO ---
+    doc.setFillColor(30, 41, 59); // Slate-800
+    doc.rect(0, 0, pageWidth, 45, 'F');
 
-    // --- 2. INFORMACIÓN DEL CLIENTE Y VEHÍCULO ---
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("DATOS DEL CLIENTE", 15, 55);
-    doc.line(15, 57, 80, 57); // Línea decorativa
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("Nombre:", 15, 65);
-    doc.text("Teléfono:", 15, 72);
-    
-    doc.setFont("helvetica", "normal");
-    doc.text(clienteSel.name.toUpperCase(), 35, 65);
-    doc.text(clienteSel.phone || "---", 35, 72);
+    // Función interna para añadir el contenido después de cargar la imagen
+    const completarPDF = (imgData?: string) => {
+      if (imgData) {
+        // (imagen, formato, x, y, ancho, alto)
+        // Ajusta 45 y 22 para que tu logo calce perfecto
+        doc.addImage(imgData, 'PNG', 15, 8, 45, 22);
+      } else {
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text("UPON'S GARAGE", 15, 25);
+      }
 
-    // Recuadro para el Vehículo
-    doc.setFillColor(248, 250, 252); // Gris muy claro
-    doc.roundedRect(pageWidth - 95, 50, 80, 28, 3, 3, 'F');
-    doc.setFont("helvetica", "bold");
-    doc.text("VEHÍCULO", pageWidth - 90, 57);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Dominio: ${vehiculoSel?.plate || "S/P"}`, pageWidth - 90, 64);
-    doc.text(`Modelo: ${vehiculoSel?.matricula || "S/P"}`, pageWidth - 90, 71);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Servicio Mecánico Profesional", 15, 36); 
+      doc.text("Calle Ficticia 123 - Ciudad", 15, 41);
 
-    // --- 3. TABLA DE CONCEPTOS ---
-    autoTable(doc, {
-      startY: 85,
-      head: [['DESCRIPCIÓN', 'UNITARIO', 'CANT.', 'SUBTOTAL']],
-      body: items.map(i => [
-        i.desc.toUpperCase(), 
-        `$${Number(i.unit).toLocaleString()}`, 
-        i.cant, 
-        `$${Number(i.total).toLocaleString()}`
-      ]),
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { 
-        fillColor: [245, 158, 11], // Color naranja amber-500
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { halign: 'right', fontStyle: 'italic' },
-        2: { halign: 'center' },
-        3: { halign: 'right', fontStyle: 'bold' }
-      },
-      alternateRowStyles: { fillColor: [250, 250, 250] },
-      margin: { left: 15, right: 15 }
-    });
+      // Etiqueta de Presupuesto a la derecha
+      doc.setFontSize(16);
+      doc.text("PRESUPUESTO", pageWidth - 15, 22, { align: 'right' });
+      doc.setFontSize(10);
+      doc.text(`#${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`, pageWidth - 15, 29, { align: 'right' });
 
-    // --- 4. TOTALES Y NOTAS ---
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    doc.setFillColor(30, 41, 59);
-    doc.rect(pageWidth - 85, finalY, 70, 15, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("TOTAL ESTIMADO:", pageWidth - 80, finalY + 9.5);
-    doc.text(`$${total.toLocaleString()}`, pageWidth - 20, finalY + 9.5, { align: 'right' });
+      // --- 3. DATOS CLIENTE Y VEHÍCULO ---
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("DATOS DEL CLIENTE", 15, 60);
+      doc.line(15, 62, 80, 62); 
+      
+      doc.setFontSize(10);
+      doc.text("Nombre:", 15, 70);
+      doc.text("Teléfono:", 15, 77);
+      
+      doc.setFont("helvetica", "normal");
+      doc.text(clienteSel.name.toUpperCase(), 35, 70);
+      doc.text(clienteSel.phone || "---", 35, 77);
 
-    // Nota pie de página
-    doc.setTextColor(100, 116, 139);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    const nota = "Este presupuesto tiene una validez de 7 días. Los precios de repuestos están sujetos a cambios sin previo aviso.";
-    doc.text(nota, pageWidth / 2, finalY + 30, { align: 'center' });
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(pageWidth - 95, 55, 80, 28, 3, 3, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.text("VEHÍCULO", pageWidth - 90, 62);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Dominio: ${vehiculoSel?.plate || "S/P"}`, pageWidth - 90, 69);
+      doc.text(`Modelo: ${vehiculoSel?.matricula || "S/P"}`, pageWidth - 90, 76);
 
-    // --- 5. GUARDADO ---
-    doc.save(`Presupuesto_${clienteSel.name.replace(/\s+/g, '_')}.pdf`);
-  };  
-  
-  
+      // --- 4. TABLA ---
+      autoTable(doc, {
+        startY: 90,
+        head: [['DESCRIPCIÓN', 'UNITARIO', 'CANT.', 'SUBTOTAL']],
+        body: items.map(i => [
+          i.desc.toUpperCase(), 
+          `$${Number(i.unit).toLocaleString()}`, 
+          i.cant, 
+          `$${Number(i.total).toLocaleString()}`
+        ]),
+        headStyles: { fillColor: [245, 158, 11] }, // Amber 500
+        margin: { left: 15, right: 15 }
+      });
+
+      // --- 5. TOTAL ---
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFillColor(30, 41, 59);
+      doc.rect(pageWidth - 85, finalY, 70, 15, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.text("TOTAL:", pageWidth - 80, finalY + 9.5);
+      doc.text(`$${total.toLocaleString()}`, pageWidth - 20, finalY + 9.5, { align: 'right' });
+
+      doc.save(`Presupuesto_${clienteSel.name.replace(/\s+/g, '_')}.pdf`);
+    };
+
+    // --- LÓGICA DE CARGA DE IMAGEN ---
+    const img = new Image();
+    img.src = logoUrl;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL("image/png");
+      completarPDF(dataURL);
+    };
+    img.onerror = () => completarPDF(); // Si no carga el logo, genera el PDF igual
+  };         
+         
 
   return (
     <div className="p-6 bg-slate-900 min-h-screen text-white grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
@@ -368,12 +368,6 @@ export default function GeneradorPresupuesto() {
     </div>
   );
 }
-
-
-
-
-
-
 
 
 
