@@ -113,110 +113,113 @@ export default function GeneradorPresupuesto() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`, "_blank");
   };
 
-  
   const generarPDF = async () => {
-    if (items.length === 0 || !clienteSel) return;
-    
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // --- 1. CARGA DEL LOGO DESDE /public ---
-    // Asegúrate de que la extensión sea la correcta (.png o .jpg)
-    const logoUrl = "/LogoT3.png"; 
+  if (items.length === 0 || !clienteSel) return;
 
-    // --- 2. ENCABEZADO ---
-    doc.setFillColor(30, 41, 59); // Slate-800
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const logoUrl = "/LogoT3.png";
+
+  // Función interna que arma el PDF
+  const completarPDF = (imgData?: string) => {
+    // 1. ENCABEZADO OSCURO
+    doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 45, 'F');
 
-    // Función interna para añadir el contenido después de cargar la imagen
-    const completarPDF = (imgData?: string) => {
-      if (imgData) {
-        // (imagen, formato, x, y, ancho, alto)
-        // Ajusta 45 y 22 para que tu logo calce perfecto
-        doc.addImage(imgData, 'PNG', 15, 8, 60, 30);
-      } else {
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(20);
-        doc.text("UPON'S GARAGE", 15, 25);
-      }
-
+    if (imgData) {
+      // LOGO AGRANDADO (60x30)
+      doc.addImage(imgData, 'PNG', 15, 7, 60, 30);
+    } else {
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text("Servicio Mecánico Profesional", 15, 36); 
-      doc.text("Calle Ficticia 123 - Ciudad", 15, 41);
+      doc.setFontSize(20);
+      doc.text("UPON'S GARAGE", 15, 25);
+    }
 
-      // Etiqueta de Presupuesto a la derecha
-      doc.setFontSize(16);
-      doc.text("PRESUPUESTO", pageWidth - 15, 22, { align: 'right' });
-      doc.setFontSize(10);
-      doc.text(`#${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`, pageWidth - 15, 29, { align: 'right' });
+    // Texto de contacto en el encabezado
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("Servicio Mecánico Profesional", 15, 38);
+    doc.text("Calle Ficticia 123 - Ciudad", 15, 42);
 
-      // --- 3. DATOS CLIENTE Y VEHÍCULO ---
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("DATOS DEL CLIENTE", 15, 60);
-      doc.line(15, 62, 80, 62); 
-      
-      doc.setFontSize(10);
-      doc.text("Nombre:", 15, 70);
-      doc.text("Teléfono:", 15, 77);
-      
-      doc.setFont("helvetica", "normal");
-      doc.text(clienteSel.name.toUpperCase(), 35, 70);
-      doc.text(clienteSel.phone || "---", 35, 77);
+    // Título PRESUPUESTO a la derecha
+    doc.setFontSize(16);
+    doc.text("PRESUPUESTO", pageWidth - 15, 22, { align: 'right' });
+    doc.setFontSize(10);
+    doc.text(`#${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`, pageWidth - 15, 29, { align: 'right' });
 
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(pageWidth - 95, 55, 80, 28, 3, 3, 'F');
-      doc.setFont("helvetica", "bold");
-      doc.text("VEHÍCULO", pageWidth - 90, 62);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Dominio: ${vehiculoSel?.plate || "S/P"}`, pageWidth - 90, 69);
-      doc.text(`Modelo: ${vehiculoSel?.matricula || "S/P"}`, pageWidth - 90, 76);
+    // 2. DATOS CLIENTE Y VEHÍCULO
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("DATOS DEL CLIENTE", 15, 60);
+    doc.line(15, 62, 80, 62);
 
-      // --- 4. TABLA ---
-      autoTable(doc, {
-        startY: 90,
-        head: [['DESCRIPCIÓN', 'UNITARIO', 'CANT.', 'SUBTOTAL']],
-        body: items.map(i => [
-          i.desc.toUpperCase(), 
-          `$${Number(i.unit).toLocaleString()}`, 
-          i.cant, 
-          `$${Number(i.total).toLocaleString()}`
-        ]),
-        headStyles: { fillColor: [245, 158, 11] }, // Amber 500
-        margin: { left: 15, right: 15 }
-      });
+    doc.setFontSize(10);
+    doc.text("Nombre:", 15, 70);
+    doc.text("Teléfono:", 15, 77);
 
-      // --- 5. TOTAL ---
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFillColor(30, 41, 59);
-      doc.rect(pageWidth - 85, finalY, 70, 15, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.text("TOTAL:", pageWidth - 80, finalY + 9.5);
-      doc.text(`$${total.toLocaleString()}`, pageWidth - 20, finalY + 9.5, { align: 'right' });
+    doc.setFont("helvetica", "normal");
+    doc.text(clienteSel.name.toUpperCase(), 35, 70);
+    doc.text(clienteSel.phone || "---", 35, 77);
 
-      doc.save(`Presupuesto_${clienteSel.name.replace(/\s+/g, '_')}.pdf`);
-    };
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(pageWidth - 95, 55, 80, 28, 3, 3, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.text("VEHÍCULO", pageWidth - 90, 62);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Dominio: ${vehiculoSel?.plate || "S/P"}`, pageWidth - 90, 69);
+    doc.text(`Modelo: ${vehiculoSel?.matricula || "S/P"}`, pageWidth - 90, 76);
 
-    // --- LÓGICA DE CARGA DE IMAGEN ---
-    const img = new Image();
-    img.src = logoUrl;
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx?.drawImage(img, 0, 0);
-      const dataURL = canvas.toDataURL("image/png");
-      completarPDF(dataURL);
-    };
-    img.onerror = () => completarPDF(); // Si no carga el logo, genera el PDF igual
-  };         
-         
+    // 3. TABLA DE ITEMS
+    autoTable(doc, {
+      startY: 90,
+      head: [['DESCRIPCIÓN', 'UNITARIO', 'CANT.', 'SUBTOTAL']],
+      body: items.map(i => [
+        i.desc.toUpperCase(),
+        `$${Number(i.unit).toLocaleString()}`,
+        i.cant,
+        `$${Number(i.total).toLocaleString()}`
+      ]),
+      headStyles: { fillColor: [245, 158, 11] },
+      margin: { left: 15, right: 15 }
+    });
 
+    // 4. TOTAL
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFillColor(30, 41, 59);
+    doc.rect(pageWidth - 85, finalY, 70, 15, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("TOTAL:", pageWidth - 80, finalY + 9.5);
+    doc.text(`$${total.toLocaleString()}`, pageWidth - 20, finalY + 9.5, { align: 'right' });
+
+    // 5. NOTA DE PIE (CORREGIDA AQUÍ ADENTRO)
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    doc.text("Este presupuesto tiene una validez de 7 días. Los precios pueden variar según repuestos.", pageWidth / 2, finalY + 30, { align: 'center' });
+
+    // GUARDAR EL ARCHIVO
+    doc.save(`Presupuesto_${clienteSel.name.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  // --- LÓGICA DE CARGA DE IMAGEN ---
+  const img = new Image();
+  img.src = logoUrl;
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx?.drawImage(img, 0, 0);
+    const dataURL = canvas.toDataURL("image/png");
+    completarPDF(dataURL);
+  };
+  img.onerror = () => completarPDF();
+};
+                                                                                                               
   return (
     <div className="p-6 bg-slate-900 min-h-screen text-white grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
       {notificacion && (
