@@ -133,7 +133,7 @@ export default function GeneradorPresupuesto() {
       if (imgData) {
         // (imagen, formato, x, y, ancho, alto)
         // Ajusta 45 y 22 para que tu logo calce perfecto
-        doc.addImage(imgData, 'PNG', 15, 8, 45, 22);
+        doc.addImage(imgData, 'PNG', 15, 8, 60, 30);
       } else {
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(20);
