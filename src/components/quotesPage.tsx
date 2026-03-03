@@ -1,15 +1,15 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { 
   Trash2, FileText, Search, Plus, 
   RotateCcw, History, Clock, User, 
-  Car, CheckCircle2, AlertCircle, MessageCircle, Edit3
+  Car, CheckCircle2, AlertCircle, MessageCircle, Edit3, XCircle
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function GeneradorPresupuesto() {
+  const [filtroEstado, setFiltroEstado] = useState<'TODOS' | 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO'>('TODOS');
   const [items, setItems] = useState<any[]>([]);
   const [tipoBusqueda, setTipoBusqueda] = useState<'MANO_OBRA' | 'REPUESTO'>('MANO_OBRA');
   const [busqueda, setBusqueda] = useState("");
@@ -67,12 +67,10 @@ export default function GeneradorPresupuesto() {
     setResultados([]);
   };
 
-  // --- NUEVA FUNCIÓN: ACTUALIZAR ITEM EDITADO ---
   const actualizarItem = (id: number, campo: string, valor: any) => {
     const nuevosItems = items.map(item => {
       if (item.id === id) {
         const actualizado = { ...item, [campo]: valor };
-        // Recalcular el total del item si cambia precio o cantidad
         if (campo === 'unit' || campo === 'cant') {
           actualizado.total = actualizado.unit * actualizado.cant;
         }
@@ -81,6 +79,15 @@ export default function GeneradorPresupuesto() {
       return item;
     });
     setItems(nuevosItems);
+  };
+
+  const actualizarEstadoPresupuesto = async (id: string, nuevoEstado: 'ACEPTADO' | 'RECHAZADO' | 'PENDIENTE') => {
+    const { error } = await supabase.from("presupuestos_guardados").update({ estado: nuevoEstado }).eq("id", id);
+    if (!error) {
+      setNotificacion({ type: 'success', msg: `Estado: ${nuevoEstado}` });
+      fetchHistorial();
+      setTimeout(() => setNotificacion(null), 3000);
+    }
   };
 
   const guardarPresupuesto = async () => {
@@ -114,112 +121,92 @@ export default function GeneradorPresupuesto() {
   };
 
   const generarPDF = async () => {
-  if (items.length === 0 || !clienteSel) return;
+    if (items.length === 0 || !clienteSel) return;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const logoUrl = "/LogoT3.png";
 
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const logoUrl = "/LogoT3.png";
+    const completarPDF = (imgData?: string) => {
+      doc.setFillColor(30, 41, 59);
+      doc.rect(0, 0, pageWidth, 45, 'F');
 
-  // Función interna que arma el PDF
-  const completarPDF = (imgData?: string) => {
-    // 1. ENCABEZADO OSCURO
-    doc.setFillColor(30, 41, 59);
-    doc.rect(0, 0, pageWidth, 45, 'F');
+      if (imgData) {
+        doc.addImage(imgData, 'PNG', 15, 7, 60, 30);
+      } else {
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text("UPON'S GARAGE", 15, 25);
+      }
 
-    if (imgData) {
-      // LOGO AGRANDADO (60x30)
-      doc.addImage(imgData, 'PNG', 15, 7, 60, 30);
-    } else {
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.text("UPTON'S GARAGE", 15, 25);
-    }
+      doc.setFontSize(9);
+      doc.text("Servicio Mecánico Profesional", 15, 38);
+      doc.text("Lavalle 960 - Puerto Madryn", 15, 42);
 
-    // Texto de contacto en el encabezado
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text("Servicio Mecánico Profesional", 15, 38);
-    doc.text("Lavalle 960 - Puerto Madryn", 15, 42);
+      doc.setFontSize(16);
+      doc.text("PRESUPUESTO", pageWidth - 15, 22, { align: 'right' });
+      doc.setFontSize(10);
+      doc.text(`#${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`, pageWidth - 15, 29, { align: 'right' });
 
-    // Título PRESUPUESTO a la derecha
-    doc.setFontSize(16);
-    doc.text("PRESUPUESTO", pageWidth - 15, 22, { align: 'right' });
-    doc.setFontSize(10);
-    doc.text(`#${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`, pageWidth - 15, 29, { align: 'right' });
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("DATOS DEL CLIENTE", 15, 60);
+      doc.line(15, 62, 80, 62);
 
-    // 2. DATOS CLIENTE Y VEHÍCULO
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("DATOS DEL CLIENTE", 15, 60);
-    doc.line(15, 62, 80, 62);
+      doc.setFontSize(10);
+      doc.text("Nombre:", 15, 70);
+      doc.text("Teléfono:", 15, 77);
+      doc.setFont("helvetica", "normal");
+      doc.text(clienteSel.name.toUpperCase(), 35, 70);
+      doc.text(clienteSel.phone || "---", 35, 77);
 
-    doc.setFontSize(10);
-    doc.text("Nombre:", 15, 70);
-    doc.text("Teléfono:", 15, 77);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(pageWidth - 95, 55, 80, 28, 3, 3, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.text("VEHÍCULO", pageWidth - 90, 62);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Dominio: ${vehiculoSel?.plate || "S/P"}`, pageWidth - 90, 69);
+      doc.text(`Modelo: ${vehiculoSel?.matricula || "S/P"}`, pageWidth - 90, 76);
 
-    doc.setFont("helvetica", "normal");
-    doc.text(clienteSel.name.toUpperCase(), 35, 70);
-    doc.text(clienteSel.phone || "---", 35, 77);
+      autoTable(doc, {
+        startY: 90,
+        head: [['DESCRIPCIÓN', 'UNITARIO', 'CANT.', 'SUBTOTAL']],
+        body: items.map(i => [i.desc.toUpperCase(), `$${Number(i.unit).toLocaleString()}`, i.cant, `$${Number(i.total).toLocaleString()}`]),
+        headStyles: { fillColor: [245, 158, 11] },
+        margin: { left: 15, right: 15 }
+      });
 
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(pageWidth - 95, 55, 80, 28, 3, 3, 'F');
-    doc.setFont("helvetica", "bold");
-    doc.text("VEHÍCULO", pageWidth - 90, 62);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Dominio: ${vehiculoSel?.plate || "S/P"}`, pageWidth - 90, 69);
-    doc.text(`Modelo: ${vehiculoSel?.matricula || "S/P"}`, pageWidth - 90, 76);
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFillColor(30, 41, 59);
+      doc.rect(pageWidth - 85, finalY, 70, 15, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("TOTAL:", pageWidth - 80, finalY + 9.5);
+      doc.text(`$${total.toLocaleString()}`, pageWidth - 20, finalY + 9.5, { align: 'right' });
 
-    // 3. TABLA DE ITEMS
-    autoTable(doc, {
-      startY: 90,
-      head: [['DESCRIPCIÓN', 'UNITARIO', 'CANT.', 'SUBTOTAL']],
-      body: items.map(i => [
-        i.desc.toUpperCase(),
-        `$${Number(i.unit).toLocaleString()}`,
-        i.cant,
-        `$${Number(i.total).toLocaleString()}`
-      ]),
-      headStyles: { fillColor: [245, 158, 11] },
-      margin: { left: 15, right: 15 }
-    });
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "italic");
+      doc.text("Este presupuesto tiene una validez de 7 días. Los precios pueden variar según repuestos.", pageWidth / 2, finalY + 30, { align: 'center' });
 
-    // 4. TOTAL
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFillColor(30, 41, 59);
-    doc.rect(pageWidth - 85, finalY, 70, 15, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("TOTAL:", pageWidth - 80, finalY + 9.5);
-    doc.text(`$${total.toLocaleString()}`, pageWidth - 20, finalY + 9.5, { align: 'right' });
+      doc.save(`Presupuesto_${clienteSel.name.replace(/\s+/g, '_')}.pdf`);
+    };
 
-    // 5. NOTA DE PIE (CORREGIDA AQUÍ ADENTRO)
-    doc.setTextColor(100, 116, 139);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    doc.text("Este presupuesto tiene una validez de 7 días. Los precios pueden variar según repuestos.", pageWidth / 2, finalY + 30, { align: 'center' });
-
-    // GUARDAR EL ARCHIVO
-    doc.save(`Presupuesto_${clienteSel.name.replace(/\s+/g, '_')}.pdf`);
+    const img = new Image();
+    img.src = logoUrl;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0);
+      completarPDF(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => completarPDF();
   };
 
-  // --- LÓGICA DE CARGA DE IMAGEN ---
-  const img = new Image();
-  img.src = logoUrl;
-  img.onload = () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext("2d");
-    ctx?.drawImage(img, 0, 0);
-    const dataURL = canvas.toDataURL("image/png");
-    completarPDF(dataURL);
-  };
-  img.onerror = () => completarPDF();
-};
-                                                                                                               
   return (
     <div className="p-6 bg-slate-900 min-h-screen text-white grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
       {notificacion && (
@@ -232,17 +219,23 @@ export default function GeneradorPresupuesto() {
       <div className="space-y-6">
         <div className="bg-slate-800 p-5 rounded-3xl border border-slate-700">
           <h2 className="text-[10px] font-black text-amber-500 uppercase mb-4 tracking-widest flex items-center gap-2"><User size={14}/> Cliente</h2>
-          <select className="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 mb-3 text-sm" value={clienteSel?.id || ""} 
+          <select 
+            className="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 mb-3 text-sm" 
+            value={clienteSel?.id || ""} 
             onChange={async (e) => {
               const c = clientes.find(cl => cl.id === e.target.value);
               setClienteSel(c);
               const { data } = await supabase.from("vehicles").select("*").eq("client_id", c.id);
               setVehiculos(data || []);
-            }}>
+            }}
+          >
             <option value="">Seleccionar...</option>
             {clientes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select className="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 text-sm" onChange={(e) => setVehiculoSel(vehiculos.find(v => v.id === e.target.value))}>
+          <select 
+            className="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 text-sm" 
+            onChange={(e) => setVehiculoSel(vehiculos.find(v => v.id === e.target.value))}
+          >
             <option value="">Vehículo...</option>
             {vehiculos.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.matricula}</option>)}
           </select>
@@ -250,7 +243,7 @@ export default function GeneradorPresupuesto() {
 
         <div className="bg-slate-800 p-5 rounded-3xl border border-slate-700 space-y-4">
           <div className="flex gap-2 bg-slate-900 p-1.5 rounded-2xl">
-            <button onClick={() => setTipoBusqueda('MANO_OBRA')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all ${tipoBusqueda === 'MANO_OBRA' ? 'bg-orange-600 text-white' : 'text-slate-500'}`}>Mano Obra</button>
+            <button onClick={() => setTipoBusqueda('MANO_OBRA')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all ${tipoBusqueda === 'MANO_OBRA' ? 'bg-orange-600 text-white' : 'text-slate-500'}`}>Mano de Obra</button>
             <button onClick={() => setTipoBusqueda('REPUESTO')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all ${tipoBusqueda === 'REPUESTO' ? 'bg-orange-600 text-white' : 'text-slate-500'}`}>Repuestos</button>
           </div>
           <input className="w-full bg-slate-900 px-4 py-3 rounded-xl border border-slate-700 text-sm" placeholder="Buscar..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
@@ -263,22 +256,74 @@ export default function GeneradorPresupuesto() {
           </div>
         </div>
 
-        <div className="bg-slate-800 p-5 rounded-3xl border border-slate-700">
-          <h2 className="text-[10px] font-black text-slate-500 uppercase mb-4 tracking-widest flex items-center gap-2"><History size={14}/> Recientes</h2>
-          <div className="space-y-2">
-            {historial.map(h => (
-              <button key={h.id} onClick={() => {
-                setItems(h.items);
-                setClienteSel(clientes.find(c => c.id === h.cliente_id));
-              }} className="w-full text-left p-3 rounded-2xl bg-slate-900/40 border border-slate-700 hover:border-orange-500/50">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-300 truncate w-32">{h.cliente_nombre}</span>
-                  <span className="text-[10px] font-black text-emerald-500 font-mono">${h.total.toLocaleString()}</span>
-                </div>
-              </button>
-            ))}
+       <div className="bg-slate-800 p-5 rounded-3xl border border-slate-700">
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+      <History size={14}/> Recientes
+    </h2>
+    {/* FILTROS DE ESTADO */}
+    <div className="flex gap-1 bg-slate-900 p-1 rounded-lg">
+      {['TODOS', 'PENDIENTE', 'ACEPTADO', 'RECHAZADO'].map((est) => (
+        <button
+          key={est}
+          onClick={() => setFiltroEstado(est as any)}
+          className={`px-2 py-1 text-[8px] font-black rounded-md transition-all ${
+            filtroEstado === est 
+              ? 'bg-slate-700 text-white' 
+              : 'text-slate-600 hover:text-slate-400'
+          }`}
+        >
+          {est[0]} {/* Muestra solo la primera letra: T, P, A, R */}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+    {historial
+      .filter(h => filtroEstado === 'TODOS' || h.estado === filtroEstado)
+      .map(h => (
+      <div key={h.id} className="group relative bg-slate-900/40 border border-slate-700 rounded-2xl p-3 hover:border-orange-500/50 transition-all">
+        <div className="flex justify-between items-start mb-2">
+          <div className="cursor-pointer flex-1" onClick={() => { setItems(h.items); setClienteSel(clientes.find(c => c.id === h.cliente_id)); }}>
+            <p className="text-xs font-bold text-slate-300 truncate w-32">{h.cliente_nombre}</p>
+            <p className="text-[10px] text-slate-500 font-mono">{new Date(h.created_at).toLocaleDateString()}</p>
+          </div>
+          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+            h.estado === 'ACEPTADO' ? 'bg-emerald-500/20 text-emerald-500' : 
+            h.estado === 'RECHAZADO' ? 'bg-red-500/20 text-red-500' : 
+            'bg-amber-500/20 text-amber-500'
+          }`}>
+            {h.estado}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-black text-white">${h.total.toLocaleString()}</span>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              onClick={() => actualizarEstadoPresupuesto(h.id, 'ACEPTADO')} 
+              className="p-1.5 hover:bg-emerald-500/20 text-emerald-500 rounded-lg"
+              title="Marcar como Aceptado"
+            >
+              <CheckCircle2 size={14}/>
+            </button>
+            <button 
+              onClick={() => actualizarEstadoPresupuesto(h.id, 'RECHAZADO')} 
+              className="p-1.5 hover:bg-red-500/20 text-red-500 rounded-lg"
+              title="Marcar como Rechazado"
+            >
+              <XCircle size={14}/>
+            </button>
           </div>
         </div>
+      </div>
+    ))}
+    
+    {historial.filter(h => filtroEstado === 'TODOS' || h.estado === filtroEstado).length === 0 && (
+      <p className="text-[10px] text-center text-slate-600 py-4 uppercase font-bold">No hay presupuestos {filtroEstado.toLowerCase()}</p>
+    )}
+  </div>
+</div>              
       </div>
 
       {/* HOJA DE PRESUPUESTO EDITABLE */}
@@ -310,34 +355,18 @@ export default function GeneradorPresupuesto() {
                   <td className="px-4 py-2 rounded-l-2xl">
                     <div className="flex items-center gap-2">
                       <Edit3 size={12} className="text-slate-600 group-hover:text-orange-500" />
-                      <input 
-                        className="bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-500/30 rounded px-2 py-1 w-full text-sm font-bold text-slate-200"
-                        value={i.desc}
-                        onChange={(e) => actualizarItem(i.id, 'desc', e.target.value)}
-                      />
+                      <input className="bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-500/30 rounded px-2 py-1 w-full text-sm font-bold text-slate-200" value={i.desc} onChange={(e) => actualizarItem(i.id, 'desc', e.target.value)} />
                     </div>
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <input 
-                      type="number"
-                      className="bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-500/30 rounded px-2 py-1 w-24 text-right font-mono text-slate-400 text-sm"
-                      value={i.unit}
-                      onChange={(e) => actualizarItem(i.id, 'unit', parseFloat(e.target.value) || 0)}
-                    />
+                    <input type="number" className="bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-500/30 rounded px-2 py-1 w-24 text-right font-mono text-slate-400 text-sm" value={i.unit} onChange={(e) => actualizarItem(i.id, 'unit', parseFloat(e.target.value) || 0)} />
                   </td>
                   <td className="px-4 py-2 text-center">
-                    <input 
-                      type="number"
-                      className="bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-500/30 rounded px-2 py-1 w-12 text-center font-black text-amber-500"
-                      value={i.cant}
-                      onChange={(e) => actualizarItem(i.id, 'cant', parseInt(e.target.value) || 0)}
-                    />
+                    <input type="number" className="bg-transparent border-none outline-none focus:ring-1 focus:ring-orange-500/30 rounded px-2 py-1 w-12 text-center font-black text-amber-500" value={i.cant} onChange={(e) => actualizarItem(i.id, 'cant', parseInt(e.target.value) || 0)} />
                   </td>
                   <td className="px-6 py-4 text-right font-black text-white text-sm">${i.total.toLocaleString()}</td>
                   <td className="px-4 py-2 text-right rounded-r-2xl">
-                    <button onClick={() => setItems(items.filter(it => it.id !== i.id))} className="text-slate-600 hover:text-red-500 transition-colors">
-                      <Trash2 size={16}/>
-                    </button>
+                    <button onClick={() => setItems(items.filter(it => it.id !== i.id))} className="text-slate-600 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
                   </td>
                 </tr>
               ))}
@@ -352,292 +381,14 @@ export default function GeneradorPresupuesto() {
         </div>
 
         <div className="p-8 bg-slate-900/50 border-t border-slate-700 flex justify-between items-center">
-          <button onClick={() => setItems([])} className="bg-slate-800 text-slate-400 p-3 rounded-2xl hover:bg-red-900/20 hover:text-red-500 transition-all">
-            <RotateCcw size={18}/>
-          </button>
+          <button onClick={() => setItems([])} className="bg-slate-800 text-slate-400 p-3 rounded-2xl hover:bg-red-900/20 hover:text-red-500 transition-all"><RotateCcw size={18}/></button>
           <div className="flex gap-3">
-            <button onClick={guardarPresupuesto} className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
-              <History size={16}/> Guardar
-            </button>
-            <button onClick={enviarWhatsApp} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
-              <MessageCircle size={18}/> Enviar WA
-            </button>
-            <button onClick={generarPDF} className="bg-amber-600 hover:bg-amber-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
-              <FileText size={18}/> PDF
-            </button>
+            <button onClick={guardarPresupuesto} className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><History size={16}/> Guardar</button>
+            <button onClick={enviarWhatsApp} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><MessageCircle size={18}/> Enviar WA</button>
+            <button onClick={generarPDF} className="bg-amber-600 hover:bg-amber-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><FileText size={18}/> PDF</button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
