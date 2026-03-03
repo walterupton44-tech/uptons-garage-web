@@ -64,7 +64,6 @@ export default function ServiceOrders() {
 
   useEffect(() => { fetchOrdenes(); }, [fetchOrdenes]);
 
-  // FUNCIONES DE LÓGICA DE BOTONES
   const enviarWhatsApp = (order: any) => {
     const telefono = order.clients?.phone;
     if (!telefono) return alert("El cliente no tiene teléfono registrado.");
@@ -75,53 +74,71 @@ export default function ServiceOrders() {
     window.open(`https://wa.me/${telefono.replace(/\D/g, "")}?text=${mensaje}`, '_blank');
   };
 
-                
+  const marcarEnProceso = async (orderId: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("service_orders")
+        .update({ status: "EN PROCESO" })
+        .eq("id", orderId);
+
+      if (error) throw error;
+      setOrdenesPendientes(prev => 
+        prev.map(o => o.id === orderId ? { ...o, status: "EN PROCESO" } : o)
+      );
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const ejecutarFinalizacion = async () => {
-  if (!orderToFinalize) return;
-  setLoading(true);
-  try {
-    // 1. Finalizar la Orden de Servicio
-    const { error: orderError } = await supabase
-      .from("service_orders")
-      .update({ status: "FINALIZADO" })
-      .eq("id", orderToFinalize.id);
+    if (!orderToFinalize) return;
+    setLoading(true);
+    try {
+      // 1. Finalizar la Orden de Servicio
+      const { error: orderError } = await supabase
+        .from("service_orders")
+        .update({ status: "FINALIZADO" })
+        .eq("id", orderToFinalize.id);
 
-    if (orderError) throw orderError;
+      if (orderError) throw orderError;
 
-    // 2. NUEVO: Actualizar el estado del presupuesto vinculado
-    // Buscamos el presupuesto pendiente de este vehículo
-    const { error: quoteError } = await supabase
-      .from("presupuestos_guardados")
-      .update({ estado: 'FINALIZADO' }) // O 'COBRADO' según prefieras
-      .eq("vehiculo_id", orderToFinalize.vehicle_id)
-      .eq("estado", 'ACEPTADO'); // Solo el que estaba aceptado
+      // 2. Actualizar el presupuesto vinculado
+      const { error: quoteError } = await supabase
+        .from("presupuestos_guardados")
+        .update({ estado: 'FINALIZADO' })
+        .eq("vehiculo_id", orderToFinalize.vehicle_id)
+        .eq("estado", 'ACEPTADO');
 
-    if (quoteError) console.error("Error al cerrar presupuesto:", quoteError);
+      if (quoteError) console.error("Error al cerrar presupuesto:", quoteError);
 
-    // 3. Limpiar estado local
-    setOrdenesPendientes(prev => prev.filter(o => o.id !== orderToFinalize.id));
-    setOrderToFinalize(null);
-    alert("¡Unidad entregada y presupuesto finalizado!");
+      setOrdenesPendientes(prev => prev.filter(o => o.id !== orderToFinalize.id));
+      setOrderToFinalize(null);
+      alert("¡Unidad entregada y presupuesto finalizado!");
 
-  } catch (err: any) {
-    alert("Error: " + err.message);
-  } finally {
-    setLoading(false);
-  }
-};                
- 
- const traducirItemsPresupuesto = (items: any[]) => {
-  if (!items || items.length === 0) return "Sin detalles";
-  // Usamos i.desc porque así lo definimos en el generador de presupuestos
-  return items.map((i: any) => i.desc || i.descripcion || "Servicio").join(", ");
-};
- 
- 
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const traducirItemsPresupuesto = (items: any[]) => {
+    if (!items || items.length === 0) return "Sin detalles";
+    return items.map((i: any) => i.desc || i.descripcion || "Servicio").join(", ");
+  };
+
+  const extraerNumPresupuesto = (desc: string) => {
+    const match = desc.match(/#(\d+)/);
+    return match ? match[1] : null;
+  };
 
   const importarPresupuestoAlForm = async (p: any) => {
     if (!p) return;
     const textoServicios = traducirItemsPresupuesto(p.items);
-    const descripcionFinal = `${textoServicios}${p.notas ? ' | NOTAS: ' + p.notas : ''}`;
+    const descripcionFinal = `ORDEN DESDE PRESUPUESTO #${p.numero_presupuesto}: ${textoServicios}${p.notas ? ' | NOTAS: ' + p.notas : ''}`;
     setFormData(prev => ({ ...prev, description: descripcionFinal }));
   };
 
@@ -202,10 +219,10 @@ export default function ServiceOrders() {
               {vehiculos.length > 0 && (
                 <div className="absolute w-full mt-2 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden z-50 shadow-2xl">
                   {vehiculos.map(v => (
-                    <div key={v.id} onClick={() => handleSelectVehicle(v)} className="p-4 hover:bg-orange-600/10 cursor-pointer flex justify-between border-b border-slate-800/50 transition-colors">
-                      <div className="flex flex-col text-left">
+                    <div key={v.id} onClick={() => handleSelectVehicle(v)} className="p-4 hover:bg-orange-600/10 cursor-pointer flex justify-between border-b border-slate-800/50 transition-colors text-left">
+                      <div>
                         <span className="font-bold text-white uppercase">{v.matricula || v.plate}</span>
-                        <span className="text-[9px] text-slate-500 uppercase font-bold">{v.clients?.name}</span>
+                        <span className="block text-[9px] text-slate-500 uppercase font-bold">{v.clients?.name}</span>
                       </div>
                       <Car size={16} className="text-slate-700" />
                     </div>
@@ -216,7 +233,7 @@ export default function ServiceOrders() {
           )}
         </div>
 
-        {/* FORMULARIO (ADMIN ONLY) */}
+        {/* FORMULARIO */}
         {userRole !== 'cliente' && (
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in duration-500">
             <div className="lg:col-span-1 space-y-6">
@@ -244,6 +261,9 @@ export default function ServiceOrders() {
                   ) : (
                     presupuestosVehiculo.map(p => (
                       <button type="button" key={p.id} onClick={() => importarPresupuestoAlForm(p)} className="flex-shrink-0 w-44 lg:w-full text-left p-4 rounded-2xl bg-slate-900/50 border border-slate-700 hover:border-orange-500/50 transition-all">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-[9px] font-black text-orange-500">#{p.numero_presupuesto}</span>
+                        </div>
                         <p className="text-[10px] text-slate-400 font-bold uppercase truncate">{traducirItemsPresupuesto(p.items)}</p>
                         <p className="text-lg text-emerald-400 font-mono font-bold mt-1">${(p.total || 0).toLocaleString()}</p>
                       </button>
@@ -284,50 +304,70 @@ export default function ServiceOrders() {
           </div>
           
           <div className="grid grid-cols-1 gap-4">
-            {ordenesPendientes.map((order) => (
-              <div key={order.id} className="bg-slate-800/40 border border-slate-700/30 p-4 md:p-6 rounded-[2.5rem] flex flex-col lg:flex-row items-center justify-between gap-6 hover:border-slate-600 transition-all">
-                
-                <div className="flex flex-col sm:flex-row items-center gap-6 w-full lg:w-auto text-center sm:text-left">
-                  <div className="bg-[#0B0F1A] w-full sm:w-auto px-8 py-5 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-orange-600/50"></div>
-                    <p className="text-2xl font-black text-white uppercase tracking-tighter leading-none mb-1">
-                      {order.vehicles?.matricula || order.vehicles?.plate}
-                    </p>
-                    <span className="text-[10px] font-mono text-orange-500 font-bold uppercase tracking-widest">
-                      {order.kilometraje?.toLocaleString()} KM
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-black text-white uppercase italic tracking-tight">{order.clients?.name}</h3>
-                    <div className="flex items-center justify-center sm:justify-start gap-2">
-                      <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
-                        Estado: <span className="text-orange-500">{order.status}</span>
+            {ordenesPendientes.map((order) => {
+              const numPresupuesto = extraerNumPresupuesto(order.description || "");
+              return (
+                <div key={order.id} className="bg-slate-800/40 border border-slate-700/30 p-4 md:p-6 rounded-[2.5rem] flex flex-col lg:flex-row items-center justify-between gap-6 hover:border-slate-600 transition-all group">
+                  
+                  <div className="flex flex-col sm:flex-row items-center gap-6 w-full lg:w-auto text-center sm:text-left">
+                    <div className="bg-[#0B0F1A] w-full sm:w-auto px-8 py-5 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+                      <div className={`absolute top-0 left-0 w-full h-1 ${order.status === 'EN PROCESO' ? 'bg-blue-500' : 'bg-orange-600/50'}`}></div>
+                      <p className="text-2xl font-black text-white uppercase tracking-tighter leading-none mb-1">
+                        {order.vehicles?.matricula || order.vehicles?.plate}
                       </p>
+                      <div className="flex items-center justify-center sm:justify-start gap-2">
+                        <span className="text-[10px] font-mono text-orange-500 font-bold uppercase tracking-widest">
+                          {order.kilometraje?.toLocaleString()} KM
+                        </span>
+                        {numPresupuesto && (
+                          <span className="bg-orange-600/20 text-orange-500 text-[8px] px-2 py-0.5 rounded font-black">
+                            PRESU #{numPresupuesto}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-500 italic line-clamp-2 max-w-md mt-2">"{order.description}"</p>
+
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-white uppercase italic tracking-tight">{order.clients?.name}</h3>
+                      <div className="flex items-center justify-center sm:justify-start gap-2">
+                        <span className={`w-2 h-2 rounded-full animate-pulse ${order.status === 'EN PROCESO' ? 'bg-blue-500' : 'bg-orange-500'}`}></span>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                          Estado: <span className={order.status === 'EN PROCESO' ? 'text-blue-500' : 'text-orange-500'}>{order.status}</span>
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-500 italic line-clamp-2 max-w-md mt-2">"{order.description}"</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 w-full lg:w-auto">
+                    {userRole !== 'cliente' && (
+                      <>
+                        {order.status === 'PENDIENTE' && (
+                          <button 
+                            onClick={() => marcarEnProceso(order.id)}
+                            className="flex-1 lg:w-auto flex items-center justify-center gap-3 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-8 py-4 rounded-2xl border border-blue-600/20 transition-all font-black uppercase italic text-[10px]"
+                          >
+                            <ShieldCheck size={18} /> Iniciar
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => setOrderToFinalize(order)}
+                          className="flex-1 lg:w-auto flex items-center justify-center gap-3 bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white px-8 py-4 rounded-2xl border border-green-600/20 transition-all font-black uppercase italic text-[10px]"
+                        >
+                          <PackageCheck size={18} /> Entregar
+                        </button>
+                      </>
+                    )}
+                    <button 
+                      onClick={() => enviarWhatsApp(order)}
+                      className="flex-1 lg:flex-none flex items-center justify-center bg-blue-500/10 hover:bg-blue-600 text-blue-500 hover:text-white px-6 py-4 rounded-2xl border border-blue-500/20 transition-all"
+                    >
+                      <MessageCircle size={20} />
+                    </button>
                   </div>
                 </div>
-                
-                <div className="flex gap-3 w-full lg:w-auto">
-                  {userRole !== 'cliente' && (
-                    <button 
-                      onClick={() => setOrderToFinalize(order)}
-                      className="flex-1 lg:w-auto flex items-center justify-center gap-3 bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white px-8 py-4 rounded-2xl border border-green-600/20 transition-all"
-                    >
-                      <PackageCheck size={18} /> Entregar
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => enviarWhatsApp(order)}
-                    className="flex-1 lg:flex-none flex items-center justify-center bg-blue-500/10 hover:bg-blue-600 text-blue-500 hover:text-white px-6 py-4 rounded-2xl border border-blue-500/20 transition-all"
-                  >
-                    <MessageCircle size={20} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -335,20 +375,20 @@ export default function ServiceOrders() {
       {/* MODAL DE CONFIRMACIÓN DE ENTREGA */}
       {orderToFinalize && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-300">
-          <div className="bg-slate-900 border-t md:border border-slate-700 w-full max-w-md rounded-t-[2.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-500">
+          <div className="bg-slate-900 border-t md:border border-slate-700 w-full max-w-md rounded-t-[2.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden">
             <div className="p-8 text-center">
               <div className="w-20 h-20 bg-green-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-green-500/30">
                 <PackageCheck size={40} className="text-green-500" />
               </div>
               <h3 className="text-xl font-black uppercase italic text-white mb-2">Confirmar Entrega</h3>
               <p className="text-slate-400 text-sm mb-8 leading-relaxed px-4">
-                ¿El vehículo <span className="text-white font-bold">{orderToFinalize.vehicles?.plate}</span> está listo para ser retirado? Se moverá al historial.
+                ¿El vehículo <span className="text-white font-bold">{orderToFinalize.vehicles?.plate}</span> está listo para ser retirado?
               </p>
               <div className="flex flex-col gap-3">
                 <button 
                   onClick={ejecutarFinalizacion}
                   disabled={loading}
-                  className="w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-black uppercase italic tracking-widest text-white transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg"
+                  className="w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-black uppercase italic tracking-widest text-white transition-all flex items-center justify-center gap-3"
                 >
                   {loading ? <Loader2 className="animate-spin" /> : "SÍ, ENTREGAR UNIDAD"}
                 </button>
