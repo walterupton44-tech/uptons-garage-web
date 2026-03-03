@@ -3,7 +3,8 @@ import { supabase } from "../supabase";
 import { 
   Trash2, FileText, Search, Plus, 
   RotateCcw, History, Clock, User, 
-  CheckCircle2, AlertCircle, MessageCircle, Edit3, XCircle, Filter
+  CheckCircle2, AlertCircle, MessageCircle, Edit3, XCircle, Filter,
+  Hash
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -176,6 +177,24 @@ export default function GeneradorPresupuesto() {
     };
     img.onerror = () => completarPDF();
   };
+  const buscarPorNumero = async (num: string) => {
+  if (!num) { 
+    fetchHistorial(); // Si borran el número, vuelve a traer los últimos 20
+    return; 
+  }
+  
+  const { data, error } = await supabase
+    .from("presupuestos_guardados")
+    .select("*")
+    .eq("numero_presupuesto", parseInt(num))
+    .maybeSingle(); // Buscamos uno solo
+    
+  if (data) {
+    setHistorial([data]); // Mostramos solo ese en la lista
+  } else {
+    setHistorial([]); // Si no existe, lista vacía
+  }
+};
 
   return (
     <div className="p-6 bg-slate-900 min-h-screen text-white grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
@@ -253,6 +272,16 @@ export default function GeneradorPresupuesto() {
               ))}
             </div>
           </div>
+          {/* NUEVO: Campo de búsqueda por número */}
+  <div className="relative mb-4">
+    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
+    <input 
+      type="number"
+      placeholder="BUSCAR # NÚMERO..."
+      className="w-full bg-slate-950/50 border border-slate-700 rounded-xl py-2 pl-8 pr-4 text-[10px] font-black uppercase tracking-widest focus:border-orange-500 outline-none transition-all text-amber-500"
+      onChange={(e) => buscarPorNumero(e.target.value)}
+    />
+  </div>
           <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
             {historial.filter(h => filtroEstado === 'TODOS' || h.estado === filtroEstado).map(h => (
               <div key={h.id} className="group bg-slate-900/40 border border-slate-700 rounded-2xl p-3 hover:border-orange-500/50 transition-all">
