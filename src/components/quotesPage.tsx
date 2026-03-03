@@ -81,14 +81,41 @@ export default function GeneradorPresupuesto() {
     setItems(nuevosItems);
   };
 
+const crearOrdenDesdePresupuesto = async (presupuesto: any) => {
+  const { error } = await supabase.from("service_orders").insert([{
+    client_id: presupuesto.cliente_id,
+    vehicle_id: presupuesto.vehiculo_id,
+    description: `ORDEN DESDE PRESUPUESTO: ${presupuesto.items.map((i: any) => i.desc).join(", ")}`,
+    status: "PENDIENTE",
+    kilometraje: 0 // Se actualizará luego en el taller
+  }]);
+
+  if (!error) {
+    setNotificacion({ type: 'success', msg: "Orden de Servicio creada" });
+  } else {
+    setNotificacion({ type: 'error', msg: "Error al crear orden" });
+  }
+};
+
   const actualizarEstadoPresupuesto = async (id: string, nuevoEstado: 'ACEPTADO' | 'RECHAZADO' | 'PENDIENTE') => {
-    const { error } = await supabase.from("presupuestos_guardados").update({ estado: nuevoEstado }).eq("id", id);
-    if (!error) {
-      setNotificacion({ type: 'success', msg: `Estado: ${nuevoEstado}` });
-      fetchHistorial();
-      setTimeout(() => setNotificacion(null), 3000);
+  const { error } = await supabase
+    .from("presupuestos_guardados")
+    .update({ estado: nuevoEstado })
+    .eq("id", id);
+
+  if (!error) {
+    // NUEVO: Si se acepta, buscamos el presupuesto y creamos la orden
+    if (nuevoEstado === 'ACEPTADO') {
+      const pSel = historial.find(h => h.id === id);
+      if (pSel) await crearOrdenDesdePresupuesto(pSel);
     }
-  };
+    
+    setNotificacion({ type: 'success', msg: `Estado: ${nuevoEstado}` });
+    fetchHistorial();
+    setTimeout(() => setNotificacion(null), 3000);
+  }
+};
+
 
   const guardarPresupuesto = async () => {
     if (items.length === 0 || !clienteSel) return;
@@ -120,6 +147,8 @@ export default function GeneradorPresupuesto() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`, "_blank");
   };
 
+
+  
   const generarPDF = async () => {
     if (items.length === 0 || !clienteSel) return;
     const doc = new jsPDF();

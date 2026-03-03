@@ -75,29 +75,48 @@ export default function ServiceOrders() {
     window.open(`https://wa.me/${telefono.replace(/\D/g, "")}?text=${mensaje}`, '_blank');
   };
 
+                
   const ejecutarFinalizacion = async () => {
-    if (!orderToFinalize) return;
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from("service_orders")
-        .update({ status: "FINALIZADO" })
-        .eq("id", orderToFinalize.id);
+  if (!orderToFinalize) return;
+  setLoading(true);
+  try {
+    // 1. Finalizar la Orden de Servicio
+    const { error: orderError } = await supabase
+      .from("service_orders")
+      .update({ status: "FINALIZADO" })
+      .eq("id", orderToFinalize.id);
 
-      if (error) throw error;
-      setOrdenesPendientes(prev => prev.filter(o => o.id !== orderToFinalize.id));
-      setOrderToFinalize(null);
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (orderError) throw orderError;
 
-  const traducirItemsPresupuesto = (items: any[]) => {
-    if (!items || items.length === 0) return "Sin detalles";
-    return items.map((i: any) => i.descripcion || i.desc || i.nombre || "Servicio").join(", ");
-  };
+    // 2. NUEVO: Actualizar el estado del presupuesto vinculado
+    // Buscamos el presupuesto pendiente de este vehículo
+    const { error: quoteError } = await supabase
+      .from("presupuestos_guardados")
+      .update({ estado: 'FINALIZADO' }) // O 'COBRADO' según prefieras
+      .eq("vehiculo_id", orderToFinalize.vehicle_id)
+      .eq("estado", 'ACEPTADO'); // Solo el que estaba aceptado
+
+    if (quoteError) console.error("Error al cerrar presupuesto:", quoteError);
+
+    // 3. Limpiar estado local
+    setOrdenesPendientes(prev => prev.filter(o => o.id !== orderToFinalize.id));
+    setOrderToFinalize(null);
+    alert("¡Unidad entregada y presupuesto finalizado!");
+
+  } catch (err: any) {
+    alert("Error: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+};                
+ 
+ const traducirItemsPresupuesto = (items: any[]) => {
+  if (!items || items.length === 0) return "Sin detalles";
+  // Usamos i.desc porque así lo definimos en el generador de presupuestos
+  return items.map((i: any) => i.desc || i.descripcion || "Servicio").join(", ");
+};
+ 
+ 
 
   const importarPresupuestoAlForm = async (p: any) => {
     if (!p) return;
