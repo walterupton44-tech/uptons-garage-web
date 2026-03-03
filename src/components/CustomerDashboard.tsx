@@ -3,13 +3,14 @@ import { supabase } from "../supabase";
 import { 
   Car, Calendar, ClipboardList, CheckCircle2, 
   Clock, Wrench, AlertCircle, MapPin, 
-  ChevronRight, MessageCircle, DollarSign, Receipt
+  ChevronRight, MessageCircle, DollarSign, Receipt, FileText, Check, X
 } from "lucide-react";
 
 export default function CustomerDashboard() {
   const [vehiculos, setVehiculos] = useState<any[]>([]);
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [pagos, setPagos] = useState<any[]>([]);
+  const [presupuestos, setPresupuestos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -48,20 +49,51 @@ export default function CustomerDashboard() {
       }
 
       if (clientId) {
-        const [vehiclesRes, ordersRes, paymentsRes] = await Promise.all([
+        const [vehiclesRes, ordersRes, paymentsRes, quotesRes] = await Promise.all([
           supabase.from("vehicles").select("*").eq("client_id", clientId),
           supabase.from("service_orders").select("*, vehicles(autos, modelo, plate)").eq("client_id", clientId).order("created_at", { ascending: false }),
-          supabase.from("payments").select("*, service_orders(vehicles(autos, plate))").eq("client_id", clientId).order("payment_date", { ascending: false })
+          supabase.from("payments").select("*, service_orders(vehicles(autos, plate))").eq("client_id", clientId).order("payment_date", { ascending: false }),
+          supabase.from("presupuestos_guardados").select("*").eq("cliente_id", clientId).eq("estado", "PENDIENTE")
         ]);
 
         setVehiculos(vehiclesRes.data || []);
         setOrdenes(ordersRes.data || []);
         setPagos(paymentsRes.data || []);
+        setPresupuestos(quotesRes.data || []);
       }
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const aceptarPresupuesto = async (presu: any) => {
+    const confirmar = window.confirm(`¿Confirmas la aceptación del presupuesto #${presu.numero_presupuesto} por $${presu.total.toLocaleString()}?`);
+    if (!confirmar) return;
+
+    try {
+      // 1. Actualizar estado del presupuesto
+      const { error } = await supabase
+        .from("presupuestos_guardados")
+        .update({ estado: "ACEPTADO" })
+        .eq("id", presu.id);
+
+      if (error) throw error;
+
+      // 2. Crear automáticamente la orden de servicio
+      await supabase.from("service_orders").insert([{
+        client_id: presu.cliente_id,
+        vehicle_id: presu.vehiculo_id,
+        description: `ORDEN DESDE PRESUPUESTO #${presu.numero_presupuesto}: ${presu.items.map((i: any) => i.desc).join(", ")}`,
+        status: "PENDIENTE",
+        kilometraje: 0
+      }]);
+
+      alert("¡Presupuesto aceptado! El taller ha sido notificado.");
+      fetchDatosCliente(); // Recargar datos
+    } catch (err: any) {
+      alert("Error al aceptar: " + err.message);
     }
   };
 
@@ -74,10 +106,10 @@ export default function CustomerDashboard() {
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700 pb-10 px-2 md:px-0">
       
-      {/* BIENVENIDA RESPONSIVA */}
+      {/* BIENVENIDA */}
       <div className="bg-gradient-to-r from-orange-600 to-orange-400 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex items-center gap-4 md:gap-6">
-          <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl border-2 md:border-4 border-white/30 overflow-hidden bg-orange-700 shadow-2xl flex shrink-0 items-center justify-center">
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl border-2 md:border-4 border-white/30 overflow-hidden bg-orange-700 shadow-2xl flex items-center justify-center">
             {avatarUrl ? (
               <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
             ) : (
@@ -99,11 +131,39 @@ export default function CustomerDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         
         <div className="lg:col-span-2 space-y-8">
+
+          {/* NUEVA SECCIÓN: PRESUPUESTOS POR APROBAR */}
+          {presupuestos.length > 0 && (
+            <div className="animate-in slide-in-from-left">
+              <h3 className="text-[10px] font-black uppercase text-amber-500 flex items-center gap-2 ml-4 mb-4 tracking-widest">
+                <FileText size={14} /> Presupuestos Pendientes
+              </h3>
+              <div className="grid grid-cols-1 gap-4">
+                {presupuestos.map((p) => (
+                  <div key={p.id} className="bg-amber-500/10 border border-amber-500/30 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="text-center md:text-left">
+                      <p className="text-[10px] font-black text-amber-500 uppercase">Cotización #{p.numero_presupuesto}</p>
+                      <h4 className="text-xl font-black text-white italic uppercase">${p.total.toLocaleString()}</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{p.vehiculo_info}</p>
+                    </div>
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <button 
+                        onClick={() => aceptarPresupuesto(p)}
+                        className="flex-1 md:flex-none bg-amber-500 hover:bg-amber-400 text-slate-900 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-tighter flex items-center justify-center gap-2 transition-all active:scale-95"
+                      >
+                        <Check size={16} /> Aprobar Trabajo
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           
-          {/* REPARACIONES */}
+          {/* REPARACIONES EN CURSO */}
           <div>
-            <h3 className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 ml-4 mb-4">
-              <ClipboardList size={14} className="text-orange-500" /> Seguimiento
+            <h3 className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 ml-4 mb-4 tracking-widest">
+              <ClipboardList size={14} className="text-orange-500" /> Seguimiento de Servicios
             </h3>
             {ordenes.length === 0 ? (
               <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[2rem] text-center">
@@ -118,23 +178,25 @@ export default function CustomerDashboard() {
                       <p className="text-[9px] font-mono text-orange-500 font-bold uppercase tracking-tighter">{o.vehicles?.plate}</p>
                     </div>
                     <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                      o.status === 'terminado' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse'
+                      o.status === 'FINALIZADO' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 
+                      o.status === 'EN PROCESO' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 
+                      'bg-slate-700 text-slate-400'
                     }`}>
                       {o.status}
                     </span>
                   </div>
                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
-                    <p className="text-[8px] text-slate-500 font-black uppercase mb-1 italic">Técnico dice:</p>
-                    <p className="text-xs md:text-sm text-slate-300 italic">"{o.diagnostico || "Evaluando..."}"</p>
+                    <p className="text-[8px] text-slate-500 font-black uppercase mb-1 italic">Estado actual:</p>
+                    <p className="text-xs md:text-sm text-slate-300 italic">{o.description || "Iniciando servicio..."}</p>
                   </div>
                 </div>
               ))
             )}
           </div>
 
-          {/* PAGOS */}
+          {/* HISTORIAL DE PAGOS */}
           <div>
-            <h3 className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 ml-4 mb-4">
+            <h3 className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-2 ml-4 mb-4 tracking-widest">
               <DollarSign size={14} className="text-emerald-500" /> Historial de Pagos
             </h3>
             <div className="bg-slate-800 border border-slate-700 rounded-[2rem] overflow-hidden shadow-xl">
@@ -148,7 +210,7 @@ export default function CustomerDashboard() {
                         <div className="bg-emerald-500/10 p-2.5 rounded-xl text-emerald-500"><Receipt size={18} /></div>
                         <div>
                           <p className="text-[10px] font-black text-white uppercase italic">Recibo #{p.id.toString().slice(-4)}</p>
-                          <p className="text-[8px] text-slate-500 font-bold uppercase">{p.payment_date}</p>
+                          <p className="text-[8px] text-slate-500 font-bold uppercase">{new Date(p.payment_date).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <p className="text-xs md:text-sm font-black text-emerald-500 italic">${p.amount.toLocaleString()}</p>
@@ -184,7 +246,7 @@ export default function CustomerDashboard() {
               <a 
                 href={`https://wa.me/${TALLER_INFO.tel1}?text=${encodeURIComponent(`Hola Upton Garage! Soy ${userName}, consulta desde la App.`)}`}
                 target="_blank" rel="noopener noreferrer"
-                className="w-full bg-slate-900 p-4 rounded-2xl flex items-center justify-center gap-3 border border-slate-700 active:scale-95 transition-all group"
+                className="w-full bg-slate-900 p-4 rounded-2xl flex items-center justify-center gap-3 border border-slate-700 active:scale-95 transition-all"
               >
                 <MessageCircle size={18} className="text-emerald-500" />
                 <span className="text-[10px] font-black uppercase text-white">WhatsApp</span>
