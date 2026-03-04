@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabase";
 import { LogIn, Mail, Lock, AlertCircle, UserPlus, User, CheckCircle2, Phone, Car, Loader2 } from "lucide-react";
-
+import logo from "../assets/Logos.png";
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState("");
@@ -100,9 +100,11 @@ export default function Login() {
         <div className="bg-slate-900/40 backdrop-blur-2xl border border-white/10 p-8 rounded-[2.5rem] shadow-2xl">
           
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-900/40 transform -rotate-6 transition-transform hover:rotate-0">
-              {isRegistering ? <UserPlus className="text-white" size={32} /> : <LogIn className="text-white" size={32} />}
-            </div>
+            
+            <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-lg">
+    <img src={logo} alt="Logos" className="w-full h-full object-contain" />
+  </div>
+            
             <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter">
               Upton <span className="text-orange-500">Garage</span>
             </h1>
