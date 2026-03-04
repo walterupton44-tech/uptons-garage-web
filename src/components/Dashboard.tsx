@@ -73,7 +73,7 @@ export default function Dashboard() {
   if (loading) return (
     <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
       <Loader2 className="animate-spin text-orange-500" size={48} />
-      <p className="text-slate-500 font-black uppercase tracking-widest text-xs">Sincronizando Upton's Garage...</p>
+      <p className="text-slate-500 font-black uppercase tracking-widest text-xs">Sincronizando Upton Garage...</p>
     </div>
   );
 
