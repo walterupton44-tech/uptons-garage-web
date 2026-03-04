@@ -104,7 +104,7 @@ export default function Login() {
               {isRegistering ? <UserPlus className="text-white" size={32} /> : <LogIn className="text-white" size={32} />}
             </div>
             <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter">
-              Upton's <span className="text-orange-500">Garage</span>
+              Upton <span className="text-orange-500">Garage</span>
             </h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">
               {isRegistering ? "Configura tu cuenta de cliente" : "Sistema de Gestión Profesional"}
@@ -179,7 +179,7 @@ export default function Login() {
               onClick={() => { setIsRegistering(!isRegistering); setError(null); setMessage(null); }}
               className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-orange-500 transition-colors"
             >
-              {isRegistering ? "¿Ya eres miembro? Inicia Sesión" : "¿Nuevo en Upton's Garage? Regístrate aquí"}
+              {isRegistering ? "¿Ya eres miembro? Inicia Sesión" : "¿Nuevo en Upton Garage? Regístrate aquí"}
             </button>
           </div>
         </div>

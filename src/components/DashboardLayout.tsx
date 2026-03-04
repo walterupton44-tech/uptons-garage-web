@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
-import logo from "../assets/Logo.png";
+import logo from "../assets/Logos.png";
 import UserAccountModal from "./UserAccountModal";
 
 const lang = "es";
@@ -187,7 +187,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
             )}
             <div className="text-left">
               <h2 className="text-lg md:text-2xl font-black text-white uppercase italic tracking-tighter">
-                Upton's <span className="text-orange-500">Garage</span>
+                Upton <span className="text-orange-500">Garage</span>
               </h2>
             </div>
           </div>
