@@ -175,7 +175,7 @@ export default function ClientsList({ clients: externalClients, onRefresh }: Cli
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3 italic text-white uppercase">
-            <User className="text-amber-500 shrink-0" size={28} /> UPTON'S CLIENTES
+            <User className="text-amber-500 shrink-0" size={28} /> UPTON - CLIENTES
           </h1>
           <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">Base de datos central de garage</p>
         </div>
