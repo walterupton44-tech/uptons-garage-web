@@ -58,7 +58,7 @@ export default function SplashLogin() {
           
           <div className="text-center space-y-2 mb-8">
             <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">
-              Upton's <span className="text-orange-600">Garage</span>
+              Upton <span className="text-orange-600">Garage</span>
             </h1>
             <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.3em]">Precision Automotive</p>
           </div>
@@ -143,7 +143,7 @@ export default function SplashLogin() {
           </form>
 
           <p className="mt-10 text-center text-slate-600 text-[9px] font-black uppercase tracking-[0.2em] opacity-50">
-            Precision Management System <span className="mx-2">|</span> Upton's Garage
+            Precision Management System <span className="mx-2">|</span> Upton Garage
           </p>
         </div>
       )}

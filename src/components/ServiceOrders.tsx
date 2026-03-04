@@ -69,7 +69,7 @@ export default function ServiceOrders() {
     if (!telefono) return alert("El cliente no tiene teléfono registrado.");
     
     const mensaje = encodeURIComponent(
-      `Hola ${order.clients.name}, te escribimos de Upton's Garage sobre tu unidad (${order.vehicles?.plate}).`
+      `Hola ${order.clients.name}, te escribimos de Upton Garage sobre tu unidad (${order.vehicles?.plate}).`
     );
     window.open(`https://wa.me/${telefono.replace(/\D/g, "")}?text=${mensaje}`, '_blank');
   };
@@ -203,7 +203,7 @@ export default function ServiceOrders() {
               <h1 className="text-xl font-black uppercase italic text-white tracking-tighter leading-none">
                 {userRole === 'cliente' ? "Mi Taller" : "Órdenes de Servicio"}
               </h1>
-              <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">Upton's Garage</p>
+              <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">Upton Garage</p>
             </div>
           </div>
           

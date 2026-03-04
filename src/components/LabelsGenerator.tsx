@@ -105,7 +105,7 @@ const LabelsGenerator: React.FC<Props> = ({ vehicles }) => {
                {/* Decorative diagonal lines */}
                <div className="absolute top-0 left-0 w-full h-2 bg-yellow-400"></div>
                <div className="flex flex-col items-center gap-1 mb-6 w-full">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">UPTON'S</span>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">UPTON</span>
                  <h2 className="text-3xl font-black text-slate-950 italic tracking-tighter flex items-center gap-1">
                     GARAGE <Zap size={24} className="fill-yellow-400 stroke-slate-950" />
                  </h2>
@@ -160,7 +160,7 @@ const LabelsGenerator: React.FC<Props> = ({ vehicles }) => {
       {/* Print Version */}
       <div className="hidden print:block print-only">
         <div className="p-8 border-4 border-black rounded-sm w-80 mx-auto text-center font-sans">
-          <p className="text-[10px] font-bold tracking-widest">UPTON'S</p>
+          <p className="text-[10px] font-bold tracking-widest">UPTON</p>
           <h2 className="text-4xl font-black italic border-b-4 border-black mb-4">GARAGE</h2>
           <p className="text-2xl font-black mb-2">{vehicle?.plate}</p>
           <div className="my-4 border-y-2 border-black py-2 grid grid-cols-2">

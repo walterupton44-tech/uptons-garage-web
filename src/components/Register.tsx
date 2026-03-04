@@ -65,7 +65,7 @@ export default function RegisterModule({ onBack }: { onBack: () => void }) {
           }]);
         }
 
-        alert("¡Bienvenido a Upton's! Registro exitoso.");
+        alert("¡Bienvenido a Upton! Registro exitoso.");
         window.location.reload(); // Para que entre directo al Dashboard
       }
     } catch (err: any) {
@@ -78,7 +78,7 @@ export default function RegisterModule({ onBack }: { onBack: () => void }) {
   return (
     <div className="max-w-2xl mx-auto bg-slate-900/80 backdrop-blur-xl p-8 rounded-[3rem] border border-white/10 shadow-2xl">
       <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-6">
-        Nuevo en <span className="text-orange-500">Upton's</span>
+        Nuevo en <span className="text-orange-500">Upton</span>
       </h2>
       
       <form onSubmit={handleRegister} className="space-y-6">

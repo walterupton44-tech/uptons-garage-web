@@ -109,7 +109,7 @@ function App() {
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">
-            Upton's Garage <span className="text-orange-500">Security</span>
+            Upton Garage <span className="text-orange-500">Security</span>
           </p>
         </div>
       </div>
