@@ -120,7 +120,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role: initialRole }) 
         bg-slate-900 border-r border-slate-800 transition-all duration-300 flex flex-col
       `}> 
         <div className="p-6 flex items-center justify-between h-20 md:h-24 border-b border-slate-800/50"> 
-          <img src={logo} alt="Logo" className={`${sidebarOpen ? "h-12" : "h-8"} w-auto mx-auto`} />
+          <img src={logo} alt="Logos" className={`${sidebarOpen ? "h-16" : "h-12"} w-auto mx-auto`} />
           {!isDesktop && (
             <button onClick={() => setSidebarOpen(false)} className="text-slate-500"><X /></button>
           )}
