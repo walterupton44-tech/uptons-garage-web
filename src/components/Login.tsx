@@ -101,13 +101,10 @@ export default function Login() {
           
           <div className="text-center mb-8">
             
-            <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <div className="w-28 h-28 flex items-center justify-center mx-auto mb-4 shadow-lg">
     <img src={logo} alt="Logos" className="w-full h-full object-contain" />
-  </div>
-            
-            <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter">
-              Upton <span className="text-orange-500">Garage</span>
-            </h1>
+  </div>       
+           
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">
               {isRegistering ? "Configura tu cuenta de cliente" : "Sistema de Gestión Profesional"}
             </p>
